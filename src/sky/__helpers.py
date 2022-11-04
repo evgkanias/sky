@@ -18,15 +18,6 @@ The root directory
 """
 __data__ = os.path.join(__root__, 'data')
 
-PSM_SUN_RADIUS: float = 0.2667  # degrees
-PSM_PLANET_RADIUS: float = 6378000.0
-PSM_PLANET_RADIUS_SQR: float = PSM_PLANET_RADIUS * PSM_PLANET_RADIUS
-
-PSM_MIN_ALTITUDE: float = 0.0
-PSM_MAX_ALTITUDE: float = 15000.0
-PSM_LIGHTCOLLECTION_VERTICAL_STEPSIZE: float = 250.0
-PSM_ARRAYSIZE: float = 61  # = PSM_MAX_ALTITUDE / PSM_LIGHTCOLLECTION_VERTICAL_STEPSIZE + 1
-
 
 def set_rng(seed):
     """
