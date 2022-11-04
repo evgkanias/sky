@@ -45,7 +45,7 @@ def read_ushort_list(handle, size=None):
 
 def read_float_list(handle, size=None):
     if size is None:
-        size = read_float(handle)
+        size = read_int(handle)
     return np.array(
         list(struct.unpack(BYTE_ORDER + FLOAT_CHAR * size, handle.read(FLOAT_SIZE * size))), dtype=FLOAT4_TYPE)
 

@@ -112,7 +112,7 @@ class PragueSkyModel(object):
                 self.__read_polarisation(handle)
             except struct.error as e:
                 # raise NoPolarisationWarning() from e
-                warnings.warn("The supplied dataset does not contain polarisation data.")
+                warnings.warn(f"The supplied dataset does not contain polarisation data.\n{e}")
         self.__initialised = True
 
     def sky_radiance(self, params, wavelength):
@@ -125,7 +125,7 @@ class PragueSkyModel(object):
         Parameters
         ----------
         params : Parameters
-        wavelength : float, np.ndarray[float]
+        wavelength : np.ndarray[float]
 
         Returns
         -------
@@ -134,10 +134,7 @@ class PragueSkyModel(object):
         if not self.is_initialised:
             raise NotInitialisedException()
 
-        if isinstance(params.gamma, float):
-            return self.__evaluate_model(params, wavelength, self.data_rad, self.metadata_rad)
-        else:
-            return self.__evaluate_model_multi(params, wavelength, self.data_rad, self.metadata_rad)
+        return self.__evaluate_model(params, wavelength, self.data_rad, self.metadata_rad)
 
     def sun_radiance(self, params, wavelength):
         """
@@ -199,7 +196,7 @@ class PragueSkyModel(object):
         Parameters
         ----------
         params : Parameters
-        wavelength : float
+        wavelength : np.ndarray[float]
 
         Returns
         -------
@@ -241,15 +238,17 @@ class PragueSkyModel(object):
             raise NotInitialisedException()
 
         # Ignore wavelengths outside the dataset range.
-        if wavelength < self.channel_start or wavelength >= self.channel_start + self.nb_channels * self.channel_width:
-            return 0
+        wl_in_range = np.all([
+            wavelength >= self.__channel_start,
+            wavelength < self.__channel_start + self.__nb_channels * self.__channel_width
+        ], axis=0)
 
         # Don't interpolate wavelengths inside the dataset range.
-        channel_index = int(np.floor((wavelength - self.channel_start) / self.channel_width))
+        channel_index = np.int32(np.floor((wavelength - self.__channel_start) / self.__channel_width))[wl_in_range]
 
         # Translate configuration values to indices and interpolation factors.
-        visibility_param = self.get_interpolation_parameter(params.visibility, self.visibilities_trans)
-        altitude_param = self.get_interpolation_parameter(params.altitude, self.altitudes_trans)
+        visibility_param = self.get_interpolation_parameter(params.visibility, self.__visibilities_trans)
+        altitude_param = self.get_interpolation_parameter(params.altitude, self.__altitudes_trans)
 
         # Calculate position in the atmosphere
         trans_params = self.__to_transmittance_params(params.theta, distance, params.altitude)
@@ -267,7 +266,7 @@ class PragueSkyModel(object):
         # Transmittance is stored as a square root. Needs to be restored here.
         trans = trans * trans
 
-        assert 0 <= trans <= 1
+        assert np.all([0 <= trans, trans <= 1])
 
         return trans
 
@@ -289,7 +288,9 @@ class PragueSkyModel(object):
         viewpoint : np.ndarray
         view_direction : np.ndarray
         ground_level_solar_elevation_at_origin : float
+            in rad
         ground_level_solar_azimuth_at_origin : float
+            in rad
         visibility : float
         albedo : float
 
@@ -298,8 +299,13 @@ class PragueSkyModel(object):
         Parameters
         """
 
+        assert viewpoint[2] >= 0
+        assert np.all(np.linalg.norm(view_direction, axis=-1) > 0)
+        assert visibility >= 0
+        assert 0 <= albedo <= 1
+
         # Shift viewpoint about safety altitude up
-        centre_of_earth = np.array([0, 0, -PLANET_RADIUS])
+        centre_of_earth = np.array([0, 0, -PLANET_RADIUS], dtype='float64')
         to_viewpoint = viewpoint - centre_of_earth
         to_viewpoint_n = to_viewpoint / np.linalg.norm(to_viewpoint)
 
@@ -318,7 +324,7 @@ class PragueSkyModel(object):
             np.cos(ground_level_solar_azimuth_at_origin) * np.cos(ground_level_solar_elevation_at_origin),
             np.sin(ground_level_solar_azimuth_at_origin) * np.cos(ground_level_solar_elevation_at_origin),
             np.sin(ground_level_solar_elevation_at_origin)
-        ])
+        ], dtype='float64')
 
         # Solar elevation at viewpoint
         # (more precisely, solar elevation at the point on the ground directly below viewpoint)
@@ -330,38 +336,39 @@ class PragueSkyModel(object):
             look_at = view_direction_n + shifted_viewpoint
 
             correction = np.sqrt(distance_to_view * distance_to_view - PLANET_RADIUS * PLANET_RADIUS) / distance_to_view
+
             to_new_origin = to_viewpoint_n * (distance_to_view - correction)
             new_origin = centre_of_earth + to_new_origin
-
             correct_view = look_at - new_origin
+
             correct_view_n = (correct_view.T / np.linalg.norm(correct_view, axis=-1)).T
         else:
             correct_view_n = view_direction_n
 
         # Sun angle (gamma) - no correction
         dot_product_sun = np.dot(view_direction_n, direction_to_sun_n)
-        gamma = np.arccos(dot_product_sun)
+        gamma = np.arccos(dot_product_sun)  # rad
 
         # Shadow angle - requires correction
-        effective_elevation = ground_level_solar_elevation_at_origin
-        effective_azimuth = ground_level_solar_azimuth_at_origin
-        shadow_angle = effective_elevation + np.pi * 0.5
+        effective_elevation = ground_level_solar_elevation_at_origin  # rad
+        effective_azimuth = ground_level_solar_azimuth_at_origin  # rad
+        shadow_angle = effective_elevation + np.pi * 0.5  # rad
 
         shadow_direction_n = np.array([
             np.cos(shadow_angle) * np.cos(effective_azimuth),
             np.cos(shadow_angle) * np.sin(effective_azimuth),
             np.sin(shadow_angle)
-        ])
+        ], dtype='float64')
         dot_product_shadow = np.dot(correct_view_n, shadow_direction_n)
-        shadow = np.arccos(dot_product_shadow)
+        shadow = np.arccos(dot_product_shadow)  # rad
 
         # Zenith angle (theta) - corrected version stored in otherwise unused zero angle
         cos_theta_cor = np.dot(correct_view_n, to_viewpoint_n)
-        zero = np.arccos(cos_theta_cor)
+        zero = np.arccos(cos_theta_cor)  # rad
 
         # Zenith angle (theta) - uncorrected version goes outside
         cos_theta = np.dot(view_direction_n, to_viewpoint_n)
-        theta = np.arccos(cos_theta)
+        theta = np.arccos(cos_theta)  # rad
 
         return Parameters(
             theta=theta, gamma=gamma, shadow=shadow, zero=zero, elevation=elevation, altitude=altitude,
@@ -677,8 +684,6 @@ class PragueSkyModel(object):
 
         read_rad_parallel(data_list, self.__data_rad, rank, len_sun_breaks, len_zenith_breaks, len_emph_breaks)
 
-        # self.__data_rad = np.abs(self.__data_rad)
-
         # data_offset = 0
         # for con in range(self.__total_configs):
         #     offset: int = 0
@@ -825,134 +830,42 @@ class PragueSkyModel(object):
         # Structure of the data part of the data file:
         # [[[[[[
         #       sun_coefs_pol (sun_nbreaks_pol * float), zenith_coefs_pol (zenith_nbreaks_pol * float)
-        #      ] * tensor_components_pol
+        #      ] * rank
         #     ] * channels
         #    ] * elevations
         #   ] * altitudes
         #  ] * albedos
-        # ] * turbidities
+        # ] * visibilities
 
-        offset = 0
-        self.__data_pol = np.zeros(total_coefs_all_configs_pol, dtype='float64')
+        len_sun_breaks = len(sun_breaks_pol)
+        len_zenith_breaks = len(zenith_breaks_pol)
+        data_struct = ((
+                               FLOAT_CHAR * len_sun_breaks +
+                               FLOAT_CHAR * len_zenith_breaks
+                       ) * rank_pol
+                       ) * self.__total_configs
+        data_list = read_list(handle, data_struct)
 
-        one_config_byte_count = (
-            ((len(self.__metadata_pol.sun_breaks) + len(self.__metadata_pol.zenith_breaks)) * FLOAT_SIZE) *
-            self.__metadata_pol.rank)
+        self.__data_pol = np.float64(np.reshape(data_list, (self.__total_configs, total_coefs_single_config_pol)))
 
         # if a single visibility was requested, skip all configurations from the beginning till those needed for
         # the requested visibility.
         # handle.seek(one_config_byte_count * self.__skipped_configs_begin, SEEK_CUR)
 
-        for con in range(self.__total_configs):
-            for r in range(rank_pol):
-                polarisation_temp = np.array(read_double_list(handle, size=len(sun_breaks_pol)), dtype='float64')
-                self.__data_pol[offset:len(sun_breaks_pol)+offset] = polarisation_temp
-                offset += len(sun_breaks_pol)
-                # offset += compute_pp_coef(sun_breaks_pol, polarisation_temp, self.__data_pol, offset)
-
-                polarisation_temp = np.array(read_double_list(handle, size=len(zenith_breaks_pol)), dtype='float64')
-                self.__data_pol[offset:len(zenith_breaks_pol)+offset] = polarisation_temp
-                offset += len(zenith_breaks_pol)
-                # offset += compute_pp_coef(zenith_breaks_pol, polarisation_temp, self.__data_pol, offset)
-
-    def __get_coefficients(self, dataset, elevation, altitude, visibility, albedo, wavelengths):
-        """
-        Gets iterator to coefficients in the dataset array corresponding to the given configuration. Used for
-        sky radiance and polarisation.
-
-        Parameters
-        ----------
-        dataset : np.ndarray
-        elevation : int
-        altitude : int
-        visibility : int
-        albedo : int
-        wavelengths : int
-
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        ncha = self.__nb_channels
-        nele = len(self.__elevations_rad)
-        nalt = len(self.__altitudes_rad)
-        nalb = len(self.__albedos_rad)
-        return dataset[
-                wavelengths +
-                ncha * elevation +
-                ncha * nele * altitude +
-                ncha * nele * nalt * albedo +
-                ncha * nele * nalt * nalb * visibility
-        ]
+        # offset = 0
+        # for con in range(self.__total_configs):
+        #     for r in range(rank_pol):
+        #         polarisation_temp = np.array(read_double_list(handle, size=len(sun_breaks_pol)), dtype='float64')
+        #         self.__data_pol[offset:len(sun_breaks_pol)+offset] = polarisation_temp
+        #         offset += len(sun_breaks_pol)
+        #         # offset += compute_pp_coef(sun_breaks_pol, polarisation_temp, self.__data_pol, offset)
+        #
+        #         polarisation_temp = np.array(read_double_list(handle, size=len(zenith_breaks_pol)), dtype='float64')
+        #         self.__data_pol[offset:len(zenith_breaks_pol)+offset] = polarisation_temp
+        #         offset += len(zenith_breaks_pol)
+        #         # offset += compute_pp_coef(zenith_breaks_pol, polarisation_temp, self.__data_pol, offset)
 
     def __evaluate_model(self, params, wavelength, data, metadata):
-        """
-        Evaluates the model. Used for computing sky radiance and polarisation.
-
-        Parameters
-        ----------
-        params : Parameters
-        wavelength : float
-        data : np.ndarray
-        metadata : Metadata
-
-        Returns
-        -------
-        float
-        """
-
-        # Ignore wavelengths outside the dataset range
-        if (wavelength < self.__channel_start or
-                wavelength >= self.__channel_start + self.__nb_channels * self.__channel_width):
-            return 0
-
-        # Don't interpolate wavelengths inside the dataset range
-        channel_index = int(np.floor(wavelength - self.__channel_start) / self.__channel_width)
-
-        # Translate angle values to indices and interpolation factors
-        gamma = self.get_interpolation_parameter(params.gamma, metadata.sun_breaks)
-        if metadata.emph_breaks is not None and len(metadata.emph_breaks) > 0:  # for radiance
-            alpha = self.get_interpolation_parameter(params.shadow if params.elevation < 0 else params.zero,
-                                                     metadata.zenith_breaks)
-            zero = self.get_interpolation_parameter(params.zero, metadata.emph_breaks)
-        else:  # for polarisation
-            alpha = self.get_interpolation_parameter(params.zero, metadata.zenith_breaks)
-            zero = None
-        angle_parameters = AngleParameters(gamma=gamma, alpha=alpha, zero=zero)
-
-        # Translate configuration values to indices and interpolation factors
-        visibility_param = self.get_interpolation_parameter(params.visibility, self.__visibilities_rad)
-        albedo_param = self.get_interpolation_parameter(params.albedo, self.__albedos_rad)
-        altitude_param = self.get_interpolation_parameter(params.altitude, self.__altitudes_rad)
-        elevation_param = self.get_interpolation_parameter(np.rad2deg(params.elevation), self.__elevations_rad)
-
-        # Prepare parameters controlling the interpolation
-        coefficients = np.zeros((16, metadata.total_coefs_single_config), dtype='float32')
-        for i in range(16):
-            visibility_index = np.minimum(visibility_param.index + i // 8, len(self.__visibilities_rad) - 1)
-            albedo_index = np.minimum(albedo_param.index + (i % 8) // 4, len(self.__albedos_rad) - 1)
-            altitude_index = np.minimum(altitude_param.index + (i % 4) // 2, len(self.__altitudes_rad) - 1)
-            elevation_index = np.minimum(elevation_param.index + (i % 2) // 1, len(self.__elevations_rad) - 1)
-
-            coefficients[i] = self.__get_coefficients(data, elevation_index,
-                                                      altitude_index, visibility_index, albedo_index, channel_index)
-        interpolation_factor = np.array([
-            visibility_param.factor,
-            albedo_param.factor,
-            altitude_param.factor,
-            elevation_param.factor
-        ], dtype='float64')
-        control_params = ControlParameters(coefficients, interpolation_factor)
-
-        # Interpolate
-        result = self.interpolate(0, 0, angle_parameters, control_params, metadata)
-
-        # polarisation can be negative
-        assert metadata.emph_breaks is None or len(metadata.emph_breaks) == 0 or result >= 0
-
-        return result
-
-    def __evaluate_model_multi(self, params, wavelength, data, metadata):
         """
         Evaluates the model. Used for computing sky radiance and polarisation.
 
@@ -1024,6 +937,36 @@ class PragueSkyModel(object):
 
         return result
 
+    def __get_coefficients(self, dataset, elevation, altitude, visibility, albedo, wavelengths):
+        """
+        Gets iterator to coefficients in the dataset array corresponding to the given configuration. Used for
+        sky radiance and polarisation.
+
+        Parameters
+        ----------
+        dataset : np.ndarray
+        elevation : int
+        altitude : int
+        visibility : int
+        albedo : int
+        wavelengths : int,
+
+        Returns
+        -------
+        np.ndarray[float]
+        """
+        ncha = self.__nb_channels
+        nele = len(self.__elevations_rad)
+        nalt = len(self.__altitudes_rad)
+        nalb = len(self.__albedos_rad)
+        return dataset[
+                wavelengths +
+                ncha * elevation +
+                ncha * nele * altitude +
+                ncha * nele * nalt * albedo +
+                ncha * nele * nalt * nalb * visibility
+        ]
+
     def __get_coefficients_trans(self, visibility, altitude, wavelength):
         """
         Gets iterator to base transmittance coefficients in the dataset array corresponding to the given
@@ -1033,12 +976,13 @@ class PragueSkyModel(object):
         ----------
         visibility : int
         altitude : int
-        wavelength : int
+        wavelength : np.ndarray[int]
 
         Returns
         -------
         np.ndarray
         """
+        print(np.shape(wavelength), visibility, np.shape(self.__altitudes_trans), altitude, self.__nb_channels, self.__rank_trans)
         return self.__data_trans_v[((visibility * len(self.__altitudes_trans) + altitude) *
                                     self.__nb_channels + wavelength) *
                                    self.__rank_trans:]
@@ -1098,11 +1042,11 @@ class PragueSkyModel(object):
         visibility_index : int
         altitude_index : int
         trans_params : TransmittanceParameters
-        channel_index : int
+        channel_index : np.ndarray[int]
 
         Returns
         -------
-        float
+        np.ndarray[float]
         """
 
         coefs = self.__get_coefficients_trans(visibility_index, altitude_index, channel_index)
@@ -1141,7 +1085,7 @@ class PragueSkyModel(object):
 
         Parameters
         ----------
-        theta : float
+        theta : float, np.ndarray[float]
         distance : float
         altitude : float
 
@@ -1149,7 +1093,7 @@ class PragueSkyModel(object):
         -------
         TransmittanceParameters
         """
-        assert 0 <= theta <= np.pi
+        assert np.all([0 <= theta, theta <= np.pi])
         assert 0 <= distance
         assert 0 <= altitude
 
@@ -1160,23 +1104,24 @@ class PragueSkyModel(object):
         ATMOSPHERE_EDGE = PLANET_RADIUS + ATMOSPHERE_WIDTH
 
         # Find intersection of the ground-to-sun ray with edge of the atmosphere (in 2D)
-        dist_to_isect = -1
+        dist_to_isect = np.full_like(theta, -1)
         LOW_ALTITUDE = 0.3
 
         if altitude < LOW_ALTITUDE:
             # Special handling of almost zero altitude case to avoid numerical issues.
-            if theta <= 0.5 * np.pi:
-                dist_to_isect = intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, ATMOSPHERE_EDGE)
-            else:
-                dist_to_isect = 0
+            dist_to_isect[:] = 0.
+            negative_theta = theta <= 0.5 * np.pi
+            dist_to_isect[negative_theta] = intersect_ray_with_circle_2d(
+                ray_dir_x[negative_theta], ray_dir_y[negative_theta], ray_pos_y, ATMOSPHERE_EDGE)
         else:
             dist_to_isect = intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, PLANET_RADIUS)
-            if dist_to_isect < 0:
-                dist_to_isect = intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, ATMOSPHERE_EDGE)
+            negative_dist = dist_to_isect < 0
+            dist_to_isect[negative_dist] = intersect_ray_with_circle_2d(
+                ray_dir_x[negative_dist], ray_dir_y[negative_dist], ray_pos_y, ATMOSPHERE_EDGE)
 
         # The ray should always hit either the edge of the atmosphere or the planet (we are starting inside the
         # atmosphere).
-        assert dist_to_isect >= 0
+        assert np.all(dist_to_isect >= 0)
 
         dist_to_isect = np.minimum(dist_to_isect, distance)
 
@@ -1212,24 +1157,33 @@ class PragueSkyModel(object):
         """
 
         # Clamp the value to the valid range
-        clamped = np.clip(query_val, breaks[0], breaks[-1])
+        clamped = np.float64(np.clip(query_val, breaks[0], breaks[-1]))
+
+        one = 1
 
         # Get the nearest greater parameter value
-        next_greater = np.searchsorted(breaks[1:], clamped, side='right') + 1
+        next_greater = np.searchsorted(breaks[1:], clamped, side='right') + one
         # next_greater = bisect_right(breaks[:, None], clamped[None, ...], 1)
 
         # Compute the index and float factor
-        index = next_greater - 1
-        factor = np.zeros(index.shape, dtype='float32')
-        factor_valid = next_greater < (len(breaks) - 1)
+        index = next_greater - one
+        factor = np.zeros(index.shape, dtype='float64')
+        factor_valid = np.all([one < next_greater, next_greater < (len(breaks) - one)], axis=0)
         if factor.size == 1 and factor_valid:
-            factor = (clamped - breaks[next_greater - 1]) / (breaks[next_greater] - breaks[next_greater - 1])
+            factor = (float(clamped - breaks[next_greater - one]) /
+                      float(breaks[next_greater + 1 - one] - breaks[next_greater - one]))
         else:
-            factor[factor_valid] = ((clamped[factor_valid] - breaks[next_greater[factor_valid] - 1]) /
-                                    (breaks[next_greater[factor_valid]] - breaks[next_greater[factor_valid] - 1]))
+            factor[factor_valid] = (np.float64(clamped[factor_valid] - breaks[next_greater[factor_valid] - one]) /
+                                    np.float64(breaks[next_greater[factor_valid] + 1 - one] -
+                                               breaks[next_greater[factor_valid] - one]))
 
         assert np.all([0 <= index, index < len(breaks), np.any([index < len(breaks) - 1, factor == 0], axis=0)])
-        assert np.all([0 <= factor, factor <= 1])
+        assert np.all([0 <= factor, factor <= 1]), (
+            f"Factor must be in range [0, 1]. "
+            f"Out of the {len(factor)} factors, there were "
+            f"{np.sum(np.any([factor < 0], axis=0))} factors < 0 and "
+            f"{np.sum(np.any([factor > 1], axis=0))} factors > 1."
+        )
 
         return InterpolationParameter(factor=factor, index=index)
 
@@ -1240,7 +1194,7 @@ class PragueSkyModel(object):
 
         Parameters
         ----------
-        value : float
+        value : np.ndarray[float]
         param_count : int
         power : int
 
@@ -1248,11 +1202,17 @@ class PragueSkyModel(object):
         -------
         InterpolationParameter
         """
-        index = np.minimum(int(value * param_count), param_count - 1)
-        factor = 0
-        if index < param_count - 1:
-            factor = nonlerp(float(index) / param_count, float(index + 1) / param_count, value, power)
-            factor = np.clip(factor, 0, 1)
+        index = np.minimum(np.int32(value * param_count), param_count - 1)
+        factor = np.zeros(value.shape, dtype='float64')
+
+        in_range = index < param_count - 1
+        factor[in_range] = np.clip(nonlerp(np.float64(index[in_range]) / param_count,
+                                           np.float64(index[in_range] + 1) / param_count,
+                                           value[in_range], power), 0, 1)
+
+        # if index < param_count - 1:
+        #     factor = nonlerp(float(index) / param_count, float(index + 1) / param_count, value, power)
+        #     factor = np.clip(factor, 0, 1)
         return InterpolationParameter(factor, index)
 
     @staticmethod
@@ -1271,20 +1231,18 @@ class PragueSkyModel(object):
         float
         """
 
-        result = 0
+        result = 0.0
         for r in range(metadata.rank):
             # Restore the right value in the 'sun' vector
+            i_sun = r * metadata.sun_stride + metadata.sun_offset + radiance_parameters.gamma.index
             sun_param = eval_pl(
-                channel_parameters[..., r * metadata.sun_stride +
-                                   metadata.sun_offset +
-                                   radiance_parameters.gamma.index],
+                np.array([channel_parameters[0, ..., i_sun].T, channel_parameters[0, ..., i_sun+1].T]),
                 radiance_parameters.gamma.factor)
 
             # Restore the right value in the 'zenith' vector
+            i_zen = r * metadata.zenith_stride + metadata.zenith_offset + radiance_parameters.alpha.index
             zenith_param = eval_pl(
-                channel_parameters[..., r * metadata.zenith_stride +
-                                   metadata.zenith_offset +
-                                   radiance_parameters.alpha.index],
+                np.array([channel_parameters[0, ..., i_zen].T, channel_parameters[0, ..., i_zen+1].T]),
                 radiance_parameters.alpha.factor)
 
             # Accumulate their "outer" product
@@ -1292,9 +1250,9 @@ class PragueSkyModel(object):
 
         # De-emphasize (for radiance only)
         if metadata.emph_breaks is not None and len(metadata.emph_breaks) > 0:
+            i_emp = metadata.emph_offset + radiance_parameters.zero.index
             emph_param = eval_pl(
-                channel_parameters[..., metadata.emph_offset +
-                                   radiance_parameters.zero.index],
+                np.array([channel_parameters[0, ..., i_emp].T, channel_parameters[0, ..., i_emp+1].T]),
                 radiance_parameters.zero.factor)
             result *= emph_param
             result = np.maximum(result, 0)
@@ -1342,7 +1300,7 @@ class PragueSkyModel(object):
 
 
 def lerp(start, end, factor):
-    return (1 - factor) * start + factor * end
+    return (1 - factor) * np.float64(start) + factor * np.float64(end)
 
 
 def nonlerp(a: float, b: float, w: float, p: float):
@@ -1357,14 +1315,14 @@ def eval_pl(coefs, factor):
 
     Parameters
     ----------
-    coefs : np.ndarray[float]
+    coefs : np.ndarray[float], list
     factor : float
 
     Returns
     -------
     float
     """
-    return (coefs[1] - coefs[0]) * factor + coefs[0]
+    return (np.float64(coefs[1]) - np.float64(coefs[0])) * factor + np.float64(coefs[0])
 
 
 def intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, circle_radius):
@@ -1373,14 +1331,14 @@ def intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, circle_radius)
 
     Parameters
     ----------
-    ray_dir_x : float
-    ray_dir_y : float
+    ray_dir_x : np.ndarray[float]
+    ray_dir_y : np.ndarray[float]
     ray_pos_y : float
     circle_radius : float
 
     Returns
     -------
-    float
+    np.ndarray[float]
         In the case the ray intersects the circle, distance to the circle is returned, otherwise the
         function returns negative number.
     """
@@ -1394,18 +1352,22 @@ def intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, circle_radius)
     qc = ray_pos_y * ray_pos_y - circle_radius * circle_radius
     discrim = qb * qb - 4.0 * qa * qc
 
-    # No intersection or touch only
-    if discrim <= 0:
-        return -1
+    distance_to_isect = np.zeros(discrim.shape, dtype='float64')
 
-    discrim = np.sqrt(discrim)
+    # No intersection or touch only
+    touch = discrim <= 0
+    distance_to_isect[touch] = -1
+
+    discrim[~touch] = np.sqrt(discrim[~touch])
 
     # Compute distances to both intersections
-    d1 = (-qb + discrim) / (2.0 * qa)
-    d2 = (-qb - discrim) / (2.0 * qa)
+    d1 = (-qb[~touch] + discrim[~touch]) / (2.0 * qa[~touch])
+    d2 = (-qb[~touch] - discrim[~touch]) / (2.0 * qa[~touch])
 
     # Try to take the nearest positive one
-    distance_to_isect = np.minimum(d1, d2) if (d1 > 0 and d2 > 0) else np.maximum(d1, d2)
+    positive = np.all([d1 > 0, d2 > 0], axis=0)
+    distance_to_isect[~touch][positive] = np.minimum(d1, d2)[positive]
+    distance_to_isect[~touch][~positive] = np.maximum(d1, d2)[~positive]
 
     return distance_to_isect
 
@@ -1419,17 +1381,17 @@ def isect_to_altitude_distance(isect_x, isect_y):
 
     Parameters
     ----------
-    isect_x : float
-    isect_y : float
+    isect_x : np.ndarray[float]
+    isect_y : np.ndarray[float]
 
     Returns
     -------
-    tuple[float, float]
+    tuple[np.ndarray[float], np.ndarray[float]]
     """
 
     # Distance to the intersection from world origin (not along ray as dist_to_isect in the calling method).
     isect_dist = np.sqrt(isect_x * isect_x + isect_y * isect_y)
-    assert isect_dist > 0
+    assert np.all(isect_dist > 0)
 
     # Compute normalized and non-linearly scaled position in the atmosphere
     altitude = np.clip(isect_dist - PLANET_RADIUS, 0, ATMOSPHERE_WIDTH)
@@ -1438,8 +1400,8 @@ def isect_to_altitude_distance(isect_x, isect_y):
     distance = np.sqrt(distance / DIST_TO_EDGE)
     distance = np.sqrt(distance)  # Calling twice sqrt, since it is faster than np.power(..., 0.25)
     distance = np.minimum(1, distance)
-    assert 0 <= altitude <= 1
-    assert 0 <= distance <= 1
+    assert np.all([0 <= altitude, altitude <= 1])
+    assert np.all([0 <= distance, distance <= 1])
 
     return altitude, distance
 
@@ -1454,26 +1416,25 @@ def read_rad_parallel(data_list, data_set, rank, len_sun_breaks, len_zenith_brea
             # list_offset = con * single_config + r * (len_sun_breaks + len_zenith_breaks + 1)
             # offset = r * (len_sun_breaks + len_zenith_breaks)
 
-            ushort_temp = np.array(data_list[list_offset:list_offset+len_sun_breaks], dtype=USHORT_TYPE)
             # np.view changes the interpretation of the bytes from uint16 to float16
             # np.float64 simply casts the values to be handled as doubles
+            ushort_temp = np.array(data_list[list_offset:len_sun_breaks+list_offset], dtype=USHORT_TYPE)
             double_temp = np.float64(ushort_temp.view(FLOAT2_TYPE))
             data_set[con, offset:len_sun_breaks+offset] = double_temp
             list_offset += len_sun_breaks
             offset += len_sun_breaks
 
             # sometimes zenith_scale is very small
-            # zenith_scale = float(data_list[list_offset])
-            zenith_scale = float(1)
+            zenith_scale = float(data_list[list_offset])
             list_offset += 1
 
-            ushort_temp = np.array(data_list[list_offset:list_offset+len_zenith_breaks], dtype=USHORT_TYPE)
+            ushort_temp = np.array(data_list[list_offset:len_zenith_breaks+list_offset], dtype=USHORT_TYPE)
             double_temp = np.float64(ushort_temp.view(FLOAT2_TYPE))
             data_set[con, offset:len_zenith_breaks+offset] = double_temp / zenith_scale
             list_offset += len_zenith_breaks
             offset += len_zenith_breaks
 
-        ushort_temp = np.array(data_list[list_offset:list_offset+len_emph_breaks], dtype=USHORT_TYPE)
+        ushort_temp = np.array(data_list[list_offset:len_emph_breaks+list_offset], dtype=USHORT_TYPE)
         double_temp = np.float64(ushort_temp.view(FLOAT2_TYPE))
         data_set[con, offset:len_emph_breaks+offset] = double_temp
         list_offset += len_emph_breaks

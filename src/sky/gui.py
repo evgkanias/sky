@@ -1,5 +1,5 @@
 from sky.prague import PragueSkyModel
-from sky.render import render, image2texture, SPECTRUM_WAVELENGTHS
+from sky.render import render, image2texture, SPECTRUM_WAVELENGTHS, MODES
 
 from PIL import Image
 
@@ -17,6 +17,7 @@ save_path_changed = False
 
 values = {"load_path": load_path, "save_path": save_path}
 
+default_mode = 0
 default_albedo = 0.50
 default_altitude = 0
 default_azimuth = 0
@@ -25,8 +26,7 @@ default_resolution = 150  # 693
 default_visibility = 59.4
 default_wavelength = 280
 default_exposure = 0.0
-default_zoom = 1
-auto_update = False
+default_auto_update = True
 
 text_size = 9
 val_size = 9
@@ -43,7 +43,7 @@ def draw_figure(rgb):
     else:
         rgb_ = rgb
     text = image2texture(rgb_, float(exposure))
-    print(text.min(), text.max(), text.shape)
+
     img = Image.fromarray(np.transpose(text, axes=(1, 0, 2)), mode="RGBA")
     img_resize = img.resize((600, 600))
     buf = io.BytesIO()
@@ -90,8 +90,8 @@ left_column = [
         sg.Text("Configuration:")
     ],
     [
-        sg.DropDown(["Sky radiance", "Sun radiance", "Polarisation", "Transmittance"],
-                    default_value="Sky radiance",
+        sg.DropDown([m.capitalize() for m in MODES],
+                    default_value=MODES[default_mode].capitalize(),
                     readonly=True,
                     key="mode",
                     size=(49, 1)),
@@ -176,8 +176,8 @@ left_column = [
         sg.Text(f"({default_visibility:.1f} km)", key="visibility_text", size=(val_size, 1))
     ],
     [
-        sg.Button("Render", border_width=0, key="render", disabled=auto_update),
-        sg.Checkbox("Auto-update", key="auto-update", default=auto_update, enable_events=True),
+        sg.Button("Render", border_width=0, key="render", disabled=default_auto_update),
+        sg.Checkbox("Auto-update", key="auto-update", default=default_auto_update, enable_events=True),
         sg.Text("", key="render-status")
     ],
     [
@@ -222,18 +222,6 @@ left_column = [
                   key="exposure"),
         sg.Text("exposure", size=(text_size, 1)),
         sg.Text(f"({default_exposure:.1f})", key="exposure_text", size=(val_size, 1))
-    ],
-    [
-        sg.Slider((0, 10),
-                  default_value=default_zoom,
-                  orientation="horizontal",
-                  disable_number_display=True,
-                  resolution=1,
-                  enable_events=True,
-                  size=(51, 20),
-                  key="zoom"),
-        sg.Text("zoom", size=(text_size, 1)),
-        sg.Text(f"({default_zoom:.1f}x)", key="zoom_text", size=(val_size, 1))
     ],
     [
         sg.HSeparator()
@@ -299,7 +287,7 @@ def render_local():
 
     start = time.time()
     result = render(sky_model=sky, albedo=float(values["albedo"]), altitude=float(values["altitude"]),
-                    azimuth=float(values["azimuth"]), elevation=float(values["elevation"]),
+                    azimuth=np.deg2rad(values["azimuth"]), elevation=np.deg2rad(values["elevation"]),
                     visibility=float(values["visibility"]),
                     resolution=int(values["resolution"]), mode=values["mode"])
     end = time.time()
@@ -317,7 +305,7 @@ draw_figure(rgb_init)
 
 while True:
     event, values = window.read()
-    print(event, values)
+    # print(event, values)
     render_command = False
     draw_command = False
 
@@ -364,8 +352,6 @@ while True:
     elif event == "exposure":
         window["exposure_text"].update(f"({values['exposure']:.1f})")
         draw_command = True
-    elif event == "zoom":
-        window["zoom_text"].update(f"({values['zoom']:.1f}x)")
     elif event == "data_path":
         load_path = values["data_path"].replace("/", os.sep)  # correct for the "linux-only" bug
         window["data_path"].update(text=get_file_name(load_path))

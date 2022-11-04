@@ -163,7 +163,7 @@ def render(sky_model, albedo, altitude, azimuth, elevation, visibility, resoluti
         mode = MODES.index(mode.lower())
 
     # We are viewing the sky from 'altitude' meters above the origin
-    viewpoint = np.array([0, 0, altitude])
+    viewpoint = np.array([0, 0, altitude], dtype='float64')
 
     # Create the output buffer and initialise to zero
     # one per wavelength (mono) plus 3 (RGB of visible light)
