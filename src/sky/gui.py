@@ -1,5 +1,6 @@
-from sky.prague import PragueSkyModel
-from sky.render import render, image2texture, SPECTRUM_WAVELENGTHS, MODES
+from sky.prague import PragueSkyModel, AvailableData
+from sky.render import render, image2texture
+from sky.render import SPECTRUM_CHANNELS, SPECTRUM_WAVELENGTHS, SPECTRUM_STEP, MODES
 
 from PIL import Image
 
@@ -17,16 +18,31 @@ save_path_changed = False
 
 values = {"load_path": load_path, "save_path": save_path}
 
-default_mode = 1
+available = AvailableData(
+    albedo_min=0.0,
+    albedo_max=1.0,
+    altitude_min=0.0,
+    altitude_max=15000.0,
+    elevation_min=-4.2,
+    elevation_max=90.0,
+    visibility_min=20.0,
+    visibility_max=131.0,
+    polarisation=True,
+    channels=SPECTRUM_CHANNELS,
+    channel_start=SPECTRUM_WAVELENGTHS[0] - 0.5 * SPECTRUM_STEP,
+    channel_width=SPECTRUM_STEP
+)
+
+default_mode = 0
 default_albedo = 0.50
-default_altitude = 0
-default_azimuth = 0
+default_altitude = 0.0
+default_azimuth = 0.0
 default_elevation = 0.0
 default_resolution = 150  # 693
 default_visibility = 59.4
 default_wavelength = 280
 default_exposure = 0.0
-default_auto_update = True
+default_auto_update = False
 
 text_size = 9
 val_size = 9
@@ -72,14 +88,6 @@ left_column = [
         sg.Text("file")
     ],
     [
-        sg.DropDown(["Everything", "Sky radiance", "Sky transmittance", "Sky polarisation"],
-                    "Everything",
-                    size=(49, 1),
-                    readonly=True,
-                    key="part_to_load"),
-        sg.Text("part to load")
-    ],
-    [
         sg.Button("Load", border_width=0, key="load"),
         sg.Text("", key="load_ok")
     ],
@@ -90,15 +98,7 @@ left_column = [
         sg.Text("Configuration:")
     ],
     [
-        sg.DropDown([m.capitalize() for m in MODES],
-                    default_value=MODES[default_mode].capitalize(),
-                    readonly=True,
-                    key="mode",
-                    size=(49, 1)),
-        sg.Text("mode")
-    ],
-    [
-        sg.Slider((0, 1),
+        sg.Slider((available.albedo_min, available.albedo_max),
                   default_value=default_albedo,
                   orientation="horizontal",
                   disable_number_display=True,
@@ -106,12 +106,14 @@ left_column = [
                   size=(51, 20),
                   change_submits=True,
                   enable_events=True,
+                  disabled=True,
                   key="albedo"),
-        sg.Text(f"albedo", size=(text_size, 1)),
+        sg.Text(f"albedo", size=(text_size, 1),
+                tooltip=f"Ground albedo, value in range [{available.albedo_min:.1f}, {available.albedo_max:.1f}]."),
         sg.Text(f"({default_albedo:.2f})", key="albedo_text", size=(val_size, 1))
     ],
     [
-        sg.Slider((0, 15000),
+        sg.Slider((available.altitude_min, available.altitude_max),
                   default_value=default_altitude,
                   orientation="horizontal",
                   disable_number_display=True,
@@ -119,12 +121,15 @@ left_column = [
                   size=(51, 20),
                   change_submits=True,
                   enable_events=True,
+                  disabled=True,
                   key="altitude"),
-        sg.Text(f"altitude", size=(text_size, 1)),
+        sg.Text(f"altitude", size=(text_size, 1),
+                tooltip=f"Altitude of view point in meters, "
+                        f"value in range [{available.altitude_min:.1f}, {available.altitude_max:.1f}]."),
         sg.Text(f"({default_altitude:.0f} m)", key="altitude_text", size=(val_size, 1))
     ],
     [
-        sg.Slider((0, 360),
+        sg.Slider((0.0, 360.0),
                   default_value=default_azimuth,
                   orientation="horizontal",
                   disable_number_display=True,
@@ -132,12 +137,14 @@ left_column = [
                   size=(51, 20),
                   change_submits=True,
                   enable_events=True,
+                  disabled=True,
                   key="azimuth"),
-        sg.Text(f"azimuth", size=(text_size, 1)),
+        sg.Text(f"azimuth", size=(text_size, 1),
+                tooltip=f"Sun azimuth at view point in degrees, value in range [0, 360]."),
         sg.Text(f"({default_azimuth:.1f}°)", key="azimuth_text", size=(val_size, 1))
     ],
     [
-        sg.Slider((-4.2, 90),
+        sg.Slider((available.elevation_min, available.elevation_max),
                   default_value=default_elevation,
                   orientation="horizontal",
                   disable_number_display=True,
@@ -145,12 +152,15 @@ left_column = [
                   size=(51, 20),
                   change_submits=True,
                   enable_events=True,
+                  disabled=True,
                   key="elevation"),
-        sg.Text(f"elevation", size=(text_size, 1)),
+        sg.Text(f"elevation", size=(text_size, 1),
+                tooltip=f"Sun elevation at view point in degrees, "
+                        f"value in range [{available.elevation_min:.1f}, {available.elevation_max:.1f}]."),
         sg.Text(f"({default_elevation:.1f}°)", key="elevation_text", size=(val_size, 1))
     ],
     [
-        sg.Slider((0, 1024),
+        sg.Slider((1, 10000),
                   default_value=default_resolution,
                   orientation="horizontal",
                   disable_number_display=True,
@@ -158,22 +168,36 @@ left_column = [
                   size=(51, 20),
                   change_submits=True,
                   enable_events=True,
+                  disabled=True,
                   key="resolution"),
-        sg.Text(f"resolution", size=(text_size, 1)),
+        sg.Text(f"resolution", size=(text_size, 1),
+                tooltip=f"Length of resulting square image size in pixels, "
+                        f"value in range [1, 10000]."),
         sg.Text(f"({default_resolution:.0f} px)", key="resolution_text", size=(val_size, 1))
     ],
     [
-        sg.Slider((20, 131.8),
+        sg.Slider((available.visibility_min, available.visibility_max),
                   default_value=default_visibility,
                   orientation="horizontal",
                   disable_number_display=True,
                   resolution=0.1,
                   size=(51, 20),
-                  change_submits=True,
+                  change_submits=False,
                   enable_events=True,
+                  disabled=True,
                   key="visibility"),
-        sg.Text(f"visibility", size=(text_size, 1)),
+        sg.Text(f"visibility", size=(text_size, 1),
+                tooltip=f"Horizontal visibility (meteorological range) at ground level in kilometers, "
+                        f"value in range [{available.visibility_min:.1f}, {available.visibility_max:.1f}]."),
         sg.Text(f"({default_visibility:.1f} km)", key="visibility_text", size=(val_size, 1))
+    ],
+    [
+        sg.DropDown([m.capitalize() for m in MODES],
+                    default_value=MODES[default_mode].capitalize(),
+                    readonly=True,
+                    key="mode",
+                    size=(49, 1)),
+        sg.Text("mode")
     ],
     [
         sg.Button("Render", border_width=0, key="render", disabled=default_auto_update),
@@ -375,7 +399,14 @@ while True:
             window["save_ok"].update("Failed.")
             print(e)
     elif event == "LOAD COMPLETE":
+        available = sky.available_data
         # sg.popup_ok("Data loaded!")
+        window["albedo"].update(range=(available.albedo_min, available.albedo_max))
+        window["altitude"].update(range=(available.altitude_min, available.altitude_max))
+        window["elevation"].update(range=(available.elevation_min, available.elevation_max))
+        window["visibility"].update(range=(available.visibility_min, available.visibility_max))
+        window["wavelength"].update(range=(available.channel_start,
+                                           available.channel_start + available.channels * available.channel_width - 1))
         window["load_ok"].update(f"Done. ({loading_time:.1f} sec)")
         if values["auto-update"]:
             render_command = True
@@ -385,7 +416,7 @@ while True:
         window["render-status"].update(f"Done. ({rendering_time:.1f} sec)")
         draw_command = True
     elif event == "DRAW COMPLETE":
-        print("Drawing completed!")
+        pass
 
     if render_command and window["render-status"].get() != "Rendering...":
         window["render-status"].update("Rendering...")

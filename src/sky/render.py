@@ -202,6 +202,8 @@ def render(sky_model, albedo, altitude, azimuth, elevation, visibility, resoluti
     # Store the individual channels.
     out_result[3:, pixel_map] = np.float32(spectrum)
 
+    out_result[:, ~pixel_map] = -1
+
     # for x in range(resolution):
     #     for y in range(resolution):
     #
@@ -342,12 +344,17 @@ def spectrum2rgb(spectrum):
 def image2texture(image: np.ndarray, exposure: float):
     texture = np.zeros((image.shape[0], image.shape[1], 4), dtype='uint8')
     exp_mult = np.float32(np.power(2, exposure))
-    no_gamma = np.clip(np.power(image * exp_mult, 1.0 / 2.2) * 255., 0, 255)
+    img_tran = image < 0
+    img_copy = image.copy()
+    img_copy[img_tran] = 0.
+    no_gamma = np.clip(np.power(img_copy * exp_mult, 1.0 / 2.2) * 255., 0, 255)
     if no_gamma.ndim < 3:
         no_gamma = no_gamma[..., None]
+    if img_tran.ndim > 2:
+        img_tran = np.any(img_tran, axis=2)
 
     texture[:, :, :3] = np.uint8(np.floor(no_gamma))
-    texture[~np.all(np.isclose(texture[:, :, :3], 0), axis=2), 3] = 255
+    texture[~img_tran, 3] = 255
     return texture
 
 

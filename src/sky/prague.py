@@ -158,30 +158,21 @@ class PragueSkyModel(object):
             raise NotInitialisedException()
 
         sun_radiance = np.zeros((len(wavelength), len(params.gamma)), dtype='float64')
-        print(f"sun_radiance: {sun_radiance.shape}")
-        print(f"bool map: {(sun_radiance > 0).shape}")
 
         # Ignore wavelengths outside the dataset range.
         wl_in_range = np.all([wavelength >= SUN_RAD_START, wavelength < SUN_RAD_END], axis=0)
-        # if wavelength < SUN_RAD_START or wavelength >= SUN_RAD_END:
-        #     return 0
-        print(f"wl_in_range: {wl_in_range.shape}, # = {wl_in_range.sum()}")
 
         # Return zero for rays not hitting the sun.
         ray_in_radius = params.gamma <= SUN_RADIUS
-        # if params.gamma > SUN_RADIUS:
-        #     return 0
-        print(f"ray_in_radius: {ray_in_radius.shape}, # = {ray_in_radius.sum()}")
 
         valid = wl_in_range[:, None] & ray_in_radius[None, :]
-        print(f"valid: {valid.shape}")
 
         # Compute index into the sun radiance table.
         idx = (wavelength - SUN_RAD_START) / SUN_RAD_STEP
         assert np.all([0 <= idx[wl_in_range], idx[wl_in_range] < len(SUN_RAD_TABLE) - 1])
 
+        # copy the indices for the different gammas
         idx = np.repeat(idx[:, None], len(ray_in_radius), axis=1)
-        print(f"idx: {idx.shape}")
 
         idx_int = np.int32(np.floor(idx[valid]))
         idx_float = idx[valid] - np.floor(idx[valid])
