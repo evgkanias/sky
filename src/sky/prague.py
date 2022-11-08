@@ -148,37 +148,51 @@ class PragueSkyModel(object):
         Parameters
         ----------
         params : Parameters
-        wavelength : float
+        wavelength : np.ndarray[float]
 
         Returns
         -------
-        float
+        np.ndarray[float]
         """
         if not self.is_initialised:
             raise NotInitialisedException()
 
+        sun_radiance = np.zeros((len(wavelength), len(params.gamma)), dtype='float64')
+        print(f"sun_radiance: {sun_radiance.shape}")
+        print(f"bool map: {(sun_radiance > 0).shape}")
+
         # Ignore wavelengths outside the dataset range.
-        if wavelength < SUN_RAD_START or wavelength >= SUN_RAD_END:
-            return 0
+        wl_in_range = np.all([wavelength >= SUN_RAD_START, wavelength < SUN_RAD_END], axis=0)
+        # if wavelength < SUN_RAD_START or wavelength >= SUN_RAD_END:
+        #     return 0
+        print(f"wl_in_range: {wl_in_range.shape}, # = {wl_in_range.sum()}")
 
         # Return zero for rays not hitting the sun.
-        if params.gamma > SUN_RADIUS:
-            return 0
+        ray_in_radius = params.gamma <= SUN_RADIUS
+        # if params.gamma > SUN_RADIUS:
+        #     return 0
+        print(f"ray_in_radius: {ray_in_radius.shape}, # = {ray_in_radius.sum()}")
+
+        valid = wl_in_range[:, None] & ray_in_radius[None, :]
+        print(f"valid: {valid.shape}")
 
         # Compute index into the sun radiance table.
         idx = (wavelength - SUN_RAD_START) / SUN_RAD_STEP
-        assert 0 <= idx < len(SUN_RAD_TABLE) - 1
+        assert np.all([0 <= idx[wl_in_range], idx[wl_in_range] < len(SUN_RAD_TABLE) - 1])
 
-        idx_int = int(np.floor(idx))
-        idx_float = idx - np.floor(idx)
+        idx = np.repeat(idx[:, None], len(ray_in_radius), axis=1)
+        print(f"idx: {idx.shape}")
+
+        idx_int = np.int32(np.floor(idx[valid]))
+        idx_float = idx[valid] - np.floor(idx[valid])
 
         # interpolate between the two closest values in the sun radiance table.
-        sun_radiance = SUN_RAD_TABLE[idx_int] * (1 - idx_float) + SUN_RAD_TABLE[idx_int + 1] * idx_float
-        assert sun_radiance > 0
+        sun_radiance[valid] = SUN_RAD_TABLE[idx_int] * (1 - idx_float) + SUN_RAD_TABLE[idx_int + 1] * idx_float
+        assert np.all(sun_radiance[valid] > 0)
 
         # Compute transmittance towards the sun.
-        tau = self.transmittance(params, wavelength, np.finfo(float).max)
-        assert 0 <= tau <= 1
+        tau = self.transmittance(params, wavelength[wl_in_range], np.finfo(float).max)
+        assert np.all([0 <= tau, tau <= 1])
 
         # Combine
         return sun_radiance * tau
@@ -225,7 +239,7 @@ class PragueSkyModel(object):
         Parameters
         ----------
         params : Parameters
-        wavelength : float
+        wavelength : np.ndarray[float]
         distance : float
 
         Returns
@@ -684,67 +698,6 @@ class PragueSkyModel(object):
 
         read_rad_parallel(data_list, self.__data_rad, rank, len_sun_breaks, len_zenith_breaks, len_emph_breaks)
 
-        # data_offset = 0
-        # for con in range(self.__total_configs):
-        #     offset: int = 0
-        #     for r in range(rank):
-        #         sun_scale = float(1)
-        #         ushort_temp = np.array(data_list[data_offset:data_offset+len_sun_breaks], dtype=USHORT_TYPE)
-        #         data_offset += len_sun_breaks
-        #         # ushort_temp = read_ushort_list(handle, len_sun_breaks)
-        #         radiance_temp = half2double(ushort_temp).view(dtype='float64')
-        #         # if np.max(radiance_temp) > 10 or np.min(radiance_temp) < -10:
-        #         # for i in range(len(radiance_temp)):
-        #         #     radiance_temp[i] = half2double(ushort_temp[i])
-        #         # radiance_temp = np.array(read_ushort_list(handle, len(sun_breaks)), dtype='float64') / (2 ** 16)
-        #         if len(radiance_temp) != len_sun_breaks:
-        #             raise DatasetReadException("sun_coefs_rad")
-        #
-        #         self.__data_rad[con, offset:len_sun_breaks+offset] = radiance_temp / sun_scale
-        #         offset += len_sun_breaks
-        #         # offset += compute_pp_coef(sun_breaks, radiance_temp, self.__data_rad, offset, sun_scale)
-        #         # print(f"{offset}/{total_coefs_all_configs}, "
-        #         #       f"rad_min={np.min(radiance_temp):.2f}, rad_max={np.max(radiance_temp):.2f}", end="; ")
-        #
-        #         zenith_scale = float(data_list[data_offset])
-        #         data_offset += 1
-        #         # zenith_scale = float(read_double(handle))
-        #         ushort_temp = np.array(data_list[data_offset:data_offset+len_zenith_breaks], dtype=USHORT_TYPE)
-        #         data_offset += len_zenith_breaks
-        #         # ushort_temp = read_ushort_list(handle, len_zenith_breaks)
-        #         radiance_temp = half2double(ushort_temp).view(dtype='float64')  # np.zeros(ushort_temp.shape, dtype='float64')
-        #         # for i in range(len(radiance_temp)):
-        #         #     radiance_temp[i] = half2double(ushort_temp[i])
-        #         # radiance_temp = np.array(ushort_temp, dtype='float64') / (2 ** 16)
-        #         if len(radiance_temp) != len_zenith_breaks:
-        #             raise DatasetReadException("zenith_coefs_rad")
-        #         # if np.max(radiance_temp) > 10 or np.min(radiance_temp) < -10:
-        #
-        #         # sometimes zenith_scale is very small
-        #         zenith_scale = 1.
-        #         self.__data_rad[con, offset:len_zenith_breaks+offset] = radiance_temp / zenith_scale
-        #         offset += len_zenith_breaks
-        #         # offset += compute_pp_coef(zenith_breaks, radiance_temp, self.__data_rad, offset, zenith_scale)
-        #         # print(f"{offset}/{total_coefs_all_configs}, "
-        #         #       f"zen_min={np.min(radiance_temp):.2f}, zen_max={np.max(radiance_temp):.2f}, "
-        #         #       f"zen_scale={zenith_scale:.2f}")
-        #
-        #     emph_scale: float = 1.
-        #     ushort_temp = np.array(data_list[data_offset:data_offset+len_emph_breaks], dtype=USHORT_TYPE)
-        #     data_offset += len_emph_breaks
-        #     # ushort_temp = read_ushort_list(handle, len_emph_breaks)
-        #     radiance_temp = half2double(ushort_temp).view(dtype='float64')  # np.zeros(ushort_temp.shape, dtype='float64')
-        #     # if len(radiance_temp) != len(emph_breaks):
-        #     #     raise DatasetReadException("emph_coefs_rad")
-        #     # radiance_temp = np.array(read_ushort_list(handle, len(emph_breaks)), dtype='float64') / (2 ** 16)
-        #
-        #     self.__data_rad[con, offset:len_emph_breaks+offset] = radiance_temp / emph_scale
-        #     offset += len_emph_breaks
-        #     # offset += compute_pp_coef(emph_breaks, radiance_temp, self.__data_rad, offset, emph_scale)
-        #     # print(f"{offset}/{total_coefs_all_configs}, "
-        #     #       f"emp_min={np.min(radiance_temp):.2f}, emp_max={np.max(radiance_temp):.2f}; "
-        #     #       f"data_min={self.__data_rad[:con+1].min():.2f},  data_max={self.__data_rad[:con+1].max():.2f}")
-
         # Skip remaining configurations till the end.
         # handle.seek(one_config_byte_count * self.__skipped_configs_end, SEEK_CUR)
 
@@ -775,9 +728,9 @@ class PragueSkyModel(object):
 
         self.__rank_trans = read_int(handle)
 
-        self.__altitudes_trans = np.array(read_float_list(handle, size=trans_altitudes), dtype='float64')
+        self.__altitudes_trans = np.float64(read_float_list(handle, size=trans_altitudes))
 
-        self.__visibilities_trans = np.array(read_float_list(handle, size=trans_visibilities), dtype='float64')
+        self.__visibilities_trans = np.float64(read_float_list(handle, size=trans_visibilities))
 
         total_coefs_u = self.__d_dim * self.__a_dim * self.__rank_trans * trans_altitudes
         total_coefs_v = trans_visibilities * self.__rank_trans * self.__nb_channels * trans_altitudes
@@ -982,10 +935,12 @@ class PragueSkyModel(object):
         -------
         np.ndarray
         """
-        print(np.shape(wavelength), visibility, np.shape(self.__altitudes_trans), altitude, self.__nb_channels, self.__rank_trans)
-        return self.__data_trans_v[((visibility * len(self.__altitudes_trans) + altitude) *
-                                    self.__nb_channels + wavelength) *
-                                   self.__rank_trans:]
+        index_start = (((int(visibility) * len(self.__altitudes_trans) + int(altitude)
+                         ) * int(self.__nb_channels) + np.int32(wavelength)
+                        ) * int(self.__rank_trans))
+
+        return self.__data_trans_v[np.linspace(index_start, index_start + self.__rank_trans,
+                                               self.__rank_trans, endpoint=False, dtype='int32')]
 
     def __get_coefficients_trans_base(self, altitude, a, d):
         """
@@ -995,15 +950,18 @@ class PragueSkyModel(object):
         Parameters
         ----------
         altitude : int
-        a : int
-        d : int
+        a : int, np.ndarray[int]
+        d : int, np.ndarray[int]
 
         Returns
         -------
         np.ndarray
         """
-        return self.__data_trans_u[
-               self.__a_dim * self.__d_dim * self.__rank_trans + (self.__a_dim + a) * self.__rank_trans:]
+        index_start = (altitude * int(self.__a_dim) * int(self.__d_dim) * int(self.__rank_trans) +
+                       (np.int32(d) * int(self.__a_dim) + np.int32(a)) * int(self.__rank_trans))
+
+        return self.__data_trans_u[np.linspace(index_start, index_start + self.__rank_trans,
+                                               self.__rank_trans, endpoint=False, dtype='int32')]
 
     def __interpolate_trans(self, visibility_index, altitude_param, trans_params, channel_index):
         """
@@ -1014,11 +972,11 @@ class PragueSkyModel(object):
         visibility_index : int
         altitude_param : InterpolationParameter
         trans_params : TransmittanceParameters
-        channel_index : int
+        channel_index : np.ndarray[int]
 
         Returns
         -------
-        float
+        np.ndarray[float]
         """
 
         # Get transmittance for the nearest lower altitude.
@@ -1052,29 +1010,37 @@ class PragueSkyModel(object):
         coefs = self.__get_coefficients_trans(visibility_index, altitude_index, channel_index)
 
         # Load transmittance values for bi-linear interpolation
-        transmittance = np.zeros(4, dtype='float64')
-        index = 0
-        for a in range(trans_params.altitude.index, trans_params.altitude.index + 2):
-            if a < self.__a_dim:
-                for d in range(trans_params.distance.index, trans_params.distance.index + 2):
-                    if d < self.__d_dim:
-                        base_coefs = self.__get_coefficients_trans_base(altitude_index, a, d)
-                        for i in range(self.__rank_trans):
-                            # Reconstruct transmittance value
-                            transmittance[index] += float(base_coefs[i]) * float(base_coefs[i])
-                        index += 1
+        transmittance = np.zeros((self.__nb_channels, 4, trans_params.altitude.index.size), dtype='float64')
+
+        a = np.linspace(trans_params.altitude.index, trans_params.altitude.index + 1, 2, dtype='int32')
+        d = np.linspace(trans_params.distance.index, trans_params.distance.index + 1, 2, dtype='int32')
+        a = np.repeat(a[:, None], d.shape[0], axis=1)
+        d = np.repeat(d[None, :], a.shape[0], axis=0)
+        a = np.reshape(a, (-1, a.shape[-1]))
+        d = np.reshape(d, (-1, d.shape[-1]))
+        valid = np.all([a < self.__a_dim, d < self.__d_dim], axis=0)
+        base_coefs = self.__get_coefficients_trans_base(altitude_index, a[valid], d[valid])
+
+        transmittance[:, valid] = np.sum(np.float64(base_coefs[:, None, :]) * np.float64(coefs[:, :, None]), axis=0)
+        transmittance = np.transpose(transmittance, axes=(1, 0, 2))
 
         # Perform bi-linear interpolation
-        if trans_params.distance.factor > 0:
-            transmittance[0] = lerp(transmittance[0], transmittance[1], trans_params.distance.factor)
-            transmittance[1] = lerp(transmittance[2], transmittance[3], trans_params.distance.factor)
+        valid_factor = trans_params.distance.factor > 0
+        transmittance[0, :, valid_factor] = lerp(transmittance[0, :, valid_factor],
+                                                 transmittance[1, :, valid_factor],
+                                                 trans_params.distance.factor[valid_factor, None])
+        transmittance[1, :, valid_factor] = lerp(transmittance[2, :, valid_factor],
+                                                 transmittance[3, :, valid_factor],
+                                                 trans_params.distance.factor[valid_factor, None])
         transmittance[0] = np.maximum(transmittance[0], 0)
 
-        if trans_params.altitude.factor > 0:
-            transmittance[1] = np.maximum(transmittance[1], 0)
-            transmittance[0] = lerp(transmittance[0], transmittance[1], trans_params.altitude.factor)
+        valid_factor = trans_params.altitude.factor > 0
+        transmittance[1] = np.maximum(transmittance[1], 0)
+        transmittance[0, :, valid_factor] = lerp(transmittance[0, :, valid_factor],
+                                                 transmittance[1, :, valid_factor],
+                                                 trans_params.altitude.factor[valid_factor, None])
 
-        assert transmittance[0] >= 0
+        assert np.all(transmittance[0] >= 0)
 
         return transmittance[0]
 
@@ -1104,17 +1070,17 @@ class PragueSkyModel(object):
         ATMOSPHERE_EDGE = PLANET_RADIUS + ATMOSPHERE_WIDTH
 
         # Find intersection of the ground-to-sun ray with edge of the atmosphere (in 2D)
-        dist_to_isect = np.full_like(theta, -1)
+        dist_to_isect = np.full_like(theta, -1.0)
         LOW_ALTITUDE = 0.3
 
         if altitude < LOW_ALTITUDE:
             # Special handling of almost zero altitude case to avoid numerical issues.
             dist_to_isect[:] = 0.
-            negative_theta = theta <= 0.5 * np.pi
-            dist_to_isect[negative_theta] = intersect_ray_with_circle_2d(
-                ray_dir_x[negative_theta], ray_dir_y[negative_theta], ray_pos_y, ATMOSPHERE_EDGE)
+            is_theta_close = theta <= 0.5 * np.pi
+            dist_to_isect[is_theta_close] = intersect_ray_with_circle_2d(
+                ray_dir_x[is_theta_close], ray_dir_y[is_theta_close], ray_pos_y, ATMOSPHERE_EDGE)
         else:
-            dist_to_isect = intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, PLANET_RADIUS)
+            dist_to_isect[:] = intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, PLANET_RADIUS)
             negative_dist = dist_to_isect < 0
             dist_to_isect[negative_dist] = intersect_ray_with_circle_2d(
                 ray_dir_x[negative_dist], ray_dir_y[negative_dist], ray_pos_y, ATMOSPHERE_EDGE)
@@ -1361,13 +1327,18 @@ def intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, circle_radius)
     discrim[~touch] = np.sqrt(discrim[~touch])
 
     # Compute distances to both intersections
-    d1 = (-qb[~touch] + discrim[~touch]) / (2.0 * qa[~touch])
-    d2 = (-qb[~touch] - discrim[~touch]) / (2.0 * qa[~touch])
+    d1 = (-qb + discrim) / np.maximum(2.0 * qa, np.finfo(float).eps)
+    d2 = (-qb - discrim) / np.maximum(2.0 * qa, np.finfo(float).eps)
 
     # Try to take the nearest positive one
-    positive = np.all([d1 > 0, d2 > 0], axis=0)
-    distance_to_isect[~touch][positive] = np.minimum(d1, d2)[positive]
-    distance_to_isect[~touch][~positive] = np.maximum(d1, d2)[~positive]
+    both_positive = np.all([d1 > 0, d2 > 0], axis=0)
+
+    no_touch_both_positive = np.all([~touch, both_positive], axis=0)
+    distance_to_isect[no_touch_both_positive] = np.minimum(d1[no_touch_both_positive], d2[no_touch_both_positive])
+
+    no_touch_not_both_positive = np.all([~touch, ~both_positive], axis=0)
+    distance_to_isect[no_touch_not_both_positive] = np.maximum(d1[no_touch_not_both_positive],
+                                                               d2[no_touch_not_both_positive])
 
     return distance_to_isect
 
@@ -1395,7 +1366,7 @@ def isect_to_altitude_distance(isect_x, isect_y):
 
     # Compute normalized and non-linearly scaled position in the atmosphere
     altitude = np.clip(isect_dist - PLANET_RADIUS, 0, ATMOSPHERE_WIDTH)
-    altitude = np.power(altitude / ATMOSPHERE_WIDTH, 1 / 3)
+    altitude = np.power(altitude / ATMOSPHERE_WIDTH, 1.0 / 3.0)
     distance = np.arccos(isect_y / isect_dist) * PLANET_RADIUS
     distance = np.sqrt(distance / DIST_TO_EDGE)
     distance = np.sqrt(distance)  # Calling twice sqrt, since it is faster than np.power(..., 0.25)

@@ -17,7 +17,7 @@ save_path_changed = False
 
 values = {"load_path": load_path, "save_path": save_path}
 
-default_mode = 0
+default_mode = 1
 default_albedo = 0.50
 default_altitude = 0
 default_azimuth = 0
@@ -212,7 +212,7 @@ left_column = [
         sg.Text("Display:")
     ],
     [
-        sg.Slider((-10, 10),
+        sg.Slider((-25, 25),
                   default_value=default_exposure,
                   orientation="horizontal",
                   disable_number_display=True,
