@@ -1,10 +1,11 @@
 from sky.prague import PragueSkyModel, AvailableData
-from sky.render import render, image2texture
+from sky.render import render, image2texture, pixel2dir
 from sky.render import SPECTRUM_CHANNELS, SPECTRUM_WAVELENGTHS, SPECTRUM_STEP, MODES
 
 from PIL import Image
 
 import PySimpleGUI as sg
+import pandas as pd
 import numpy as np
 import time
 import os
@@ -21,13 +22,13 @@ rendering_time = 0
 drawing_time = 0
 render_command = False
 draw_command = False
-result = None
+result: {np.ndarray, None} = None
 is_rendering = False
 rendering_success = False
 is_loading = False
 loading_success = False
 saving_success = False
-img_tmp = None
+img_tmp: Image = None
 
 values = {"load_path": load_path, "save_path": save_path}
 
@@ -285,7 +286,9 @@ left_column = [
                   button_type=sg.BUTTON_TYPE_SAVEAS_FILE,
                   file_types=(
                                  ("PNG Files", "*.png"),
-                                 ("JPEG Filds", "*.jpg *.jpeg")
+                                 ("JPEG Files", "*.jpg *.jpeg"),
+                                 ("CSV Files", "*.csv"),
+                                 ("EXCEL Files", "*.xls *.xlsx")
                              ) + sg.FILE_TYPES_ALL_FILES,
                   # initial_folder=f"{get_folder_path(save_path)}",
                   initial_folder=save_path,
@@ -349,17 +352,36 @@ def load_local():
 
 
 def save_local():
-    global saving_success
+    global saving_success, img_tmp
 
-    if img_tmp is None or values["save_path"] is None:
-        saving_success = False
-    else:
+    if img_tmp is not None and values["save_path"] is not None:
         try:
-            img_tmp.save(save_path)
-            saving_success = True
+            extension = save_path.split(".")[-1].lower()
+            if extension in ("png", "jpg", "jpeg"):
+                img_tmp.save(save_path)
+                saving_success = True
+            elif extension in ("csv", "xlsx", "xls"):
+                xs, ys = np.meshgrid(np.arange(result.shape[1]), np.arange(result.shape[2]))
+                resolution = np.maximum(result.shape[1], result.shape[2])
+
+                views_dir = pixel2dir(xs, ys, resolution)
+                pixel_map = ~np.all(np.isclose(views_dir, 0), axis=2)
+                raw_data = np.hstack([views_dir[pixel_map, :], result[:, pixel_map].T])
+                columns = ["x", "y", "z", "R", "G", "B"] + [f"wl-{wl}" for wl in SPECTRUM_WAVELENGTHS]
+                df = pd.DataFrame(raw_data, columns=columns)
+                if extension in ("csv",):
+                    df.to_csv(save_path, sep=",")
+                else:
+                    df.to_excel(save_path)
+                saving_success = True
+            else:
+                saving_success = False
+                print(f"Unsupported file extension: '*.{extension}'.")
         except Exception as e:
             saving_success = False
             print(e)
+    else:
+        saving_success = False
 
 
 def render_local():

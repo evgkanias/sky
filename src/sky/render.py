@@ -172,10 +172,7 @@ def render(sky_model, albedo, altitude, azimuth, elevation, visibility, resoluti
     xs, ys = np.meshgrid(np.arange(resolution), np.arange(resolution))
 
     # For each pixel of the rendered image get the corresponding direction in fisheye projection
-    views_x = pixel2x(xs, ys, resolution)
-    views_y = pixel2y(xs, ys, resolution)
-    views_z = pixel2z(xs, ys, resolution)
-    views_dir = np.transpose(np.concatenate([[views_x], [views_y], [views_z]]), axes=(1, 2, 0))
+    views_dir = pixel2dir(xs, ys, resolution)
     pixel_map = ~np.all(np.isclose(views_dir, 0), axis=2)
 
     # Start of for-loop vectorisation
@@ -229,6 +226,15 @@ def render(sky_model, albedo, altitude, azimuth, elevation, visibility, resoluti
     #             out_result[c + 3, x, y] = float(spectrum[c])
 
     return out_result
+
+
+def pixel2dir(x, y, resolution):
+
+    # For each pixel of the rendered image get the corresponding direction in fisheye projection
+    views_x = pixel2x(x, y, resolution)
+    views_y = pixel2y(x, y, resolution)
+    views_z = pixel2z(x, y, resolution)
+    return np.transpose(np.concatenate([[views_x], [views_y], [views_z]]), axes=(1, 2, 0))
 
 
 @vectorize(['float64(int32,int32,int32)'])
