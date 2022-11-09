@@ -75,12 +75,3 @@ def read_float(handle):
 def read_double(handle):
     val, = struct.unpack(BYTE_ORDER + DOUBLE_CHAR, handle.read(DOUBLE_SIZE))
     return val
-
-
-def compute_pp_coef(breaks: np.ndarray, values: np.ndarray, coefs: np.ndarray, offset: int, scale: float = 1):
-    for i in range(len(breaks) - 1):
-        val1 = float(values[i+1]) / scale
-        val2 = float(values[i]) / scale
-        coefs[offset + 2 * i] = (val1 - val2) / (breaks[i+1] - breaks[i])
-        coefs[offset + 2 * i + 1] = val2
-    return 2 * len(breaks) - 2

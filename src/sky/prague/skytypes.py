@@ -1,3 +1,15 @@
+"""
+Package that contains all the dataclasses and static variables.
+"""
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
+                "School of Informatics, the University of Edinburgh"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "GPLv3+"
+__version__ = "v1.0.0-alpha"
+__maintainer__ = "Evripidis Gkanias"
+
 from dataclasses import dataclass
 import numpy as np
 
@@ -243,24 +255,24 @@ class Parameters:
     Structure holding all parameters necessary for querying the model.
     """
 
-    theta: {float, np.ndarray}
+    theta: np.ndarray
     """
     Angle between view direction and direction to zenith in radians, supported values in range [0, pi]
     """
 
-    gamma: {float, np.ndarray}
+    gamma: np.ndarray
     """
     Angle between view direction and direction to sun in radians, supported values in range [0, pi]
     """
 
-    shadow: {float, np.ndarray}
+    shadow: np.ndarray
     """
     Altitude-corrected angle between view direction and direction perpendicular to a shadow plane (=direction to sun
     rotated pi/2 towards direction to zenith) in radians, used for negative solar elevations only,
     supported values in range [0, pi]
     """
 
-    zero: {float, np.ndarray}
+    zero: np.ndarray
     """
     Altitude-corrected version of the theta angle in radians, supported values in range [0, pi]
     """

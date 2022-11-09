@@ -1,6 +1,6 @@
 from .prague import PragueSkyModel
 
-from numba import vectorize, njit, prange
+from numba import vectorize
 
 import numpy as np
 

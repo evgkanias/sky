@@ -1,11 +1,18 @@
-import struct
+"""
+Package that allows computations of the skylight properties by using the Vevoda el al. (2022) model.
+"""
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
+                "School of Informatics, the University of Edinburgh"
+__credits__ = ["Evripidis Gkanias"]
+__license__ = "GPLv3+"
+__version__ = "v1.0.0-alpha"
+__maintainer__ = "Evripidis Gkanias"
 
 from .io import *
 from .skytypes import *
 from .exceptions import *
-
-from bisect import bisect_right
-from numba import vectorize, njit, prange
 
 import numpy as np
 import warnings
@@ -13,11 +20,83 @@ import warnings
 
 class PragueSkyModel(object):
     def __init__(self):
+        """
+        Implementation of the physically-based sky model presented by [1]_ and [2]_. Improves on previous work
+        especially in accuracy of sunset scenarios. Based on reconstruction of radiance from a small dataset
+        fitted to a large set of images obtained by brute force atmosphere simulation.
+
+        Provides evaluation of spectral sky radiance, sun radiance, transmittance and polarisation for observer at
+        a specific altitude above ground. The range of configurations depends on supplied dataset. The full
+        version models atmosphere of visibility (meteorological range) from 20 km to 131.8 km for sun elevations
+        from -4.2 degrees to 90 degrees, observer altitudes from 0 km to 15 km and ground albedo from 0 to 1, and
+        provides results for wavelengths from 280 nm to 2480 nm.
+
+        Usage
+        -----
+        1. Create PragueSkyModel object and call its initialise method with a path to the dataset file.
+        2. The model is parametrized by several values that are gathered in a Parameters structure.
+        You can either fill this structure manually (in that case see its description) or just call
+        compute_parameters, which will compute it for you based on a few basic parameters.
+        3. Use the Parameters structure when calling sky_radiance, sun_radiance, transmittance, or polarisation
+        methods to obtain the respective quantities.
+
+        Examples
+        --------
+        >>> my_sky = PragueSkyModel()
+        >>> print(my_sky.is_initialised)
+        False
+
+        Raises
+        ------
+        DatasetNotFoundException
+            if the specified dataset file could not be found
+        DatasetReadException
+            if an error occurred while reading the dataset file
+        NoPolarisationException
+            if the polarisation method is called but the model does not contain polarisation data
+        NotInitializedException
+            if the model is used without calling the initialize method first
+
+        Note
+        ----
+        The entire model is written in a single class and does not depend on anything except of numpy. It defines a
+        simple numpy.ndarray[float] to simplify working with points and directions and expects using this class when
+        passing viewing point and direction to the compute_parameters method.
+
+        See Also
+        --------
+        Parameters
+        sky_radiance
+        sun_radiance
+        polarisation
+        transmittance
+
+        References
+        ----------
+        .. [1] Wilkie, A. et al. A fitted radiance and attenuation model for realistic atmospheres.
+           Acm T Graphic 40, 1–14 (2021). (https://cgg.mff.cuni.cz/publications/skymodel-2021/)
+
+        .. [2] Vévoda, P., Bashford-Rogers, T., Kolárová, M. & Wilkie, A. A Wide Spectral Range Sky Radiance Model.
+           Pacific Graphics 41, (2022).
+        """
+
         self.__nb_channels: int = 0
+        """
+        Number of channels (wavelengths).
+        """
         self.__channel_start: float = 0
+        """
+        The first available wavelength.
+        """
         self.__channel_width: float = 0
+        """
+        The range that the wavelength covers.
+        """
 
         self.__initialised: bool = False
+        """
+        Weather the model has been initialised.
+        """
         self.__total_configs: int = 0
         """
         Total number of configurations
@@ -45,35 +124,12 @@ class PragueSkyModel(object):
         self.__metadata_rad: {Metadata, None} = None
 
         # Radiance data
-        #
-        # Structure:
-        # [[[[[[
-        #       sun_coefs_rad (sun_breaks_count_rad * float),
-        #       zenith_coefs_rad (zenith_breas_count_rad * float)
-        #      ] * rank_rad,
-        #      emph_coefs_rad (emph_breaks_count_rad * float)
-        #     ] * channels
-        #    ] * elevation_count
-        #   ] * altitude_count
-        #  ] * albedo_count
-        # ] * visibility_count
         self.__data_rad: {np.ndarray, None} = None
 
         # Polarisation metadata
         self.__metadata_pol: {Metadata, None} = None
 
         # Polarisation data
-        #
-        # Structure:
-        # [[[[[[
-        #       sun_coefs_rad (sun_breaks_count_pol * float),
-        #       zenith_coefs_rad (zenith_breas_count_pol * float)
-        #      ] * rank_pol,
-        #     ] * channels
-        #    ] * elevation_count
-        #   ] * altitude_count
-        #  ] * albedo_count
-        # ] * visibility_count
         self.__data_pol: {np.ndarray, None} = None
 
         # Transmittance metadata
@@ -87,22 +143,44 @@ class PragueSkyModel(object):
         self.__data_trans_u: {np.ndarray, None} = None
         self.__data_trans_v: {np.ndarray, None} = None
 
-    def reset(self, filename, single_visibility=0.0):
+    def initialise(self, filename, single_visibility=0.0):
         """
         Prepares the model and loads the given dataset file into memory.
-
         If a positive visibility value is passed, only a portion of the dataset needed for evaluation of that
         particular visibility is loaded (two nearest visibilities are loaded if the value is included in the
         dataset or one nearest if not). Otherwise, the entire dataset is loaded.
 
-        Throws:
-        - DatasetNotFoundException: if the specified dataset file could not be found
-        - DatasetReadException: if an error occurred while reading the dataset file
+        Examples
+        --------
+        >>> my_sky = PragueSkyModel()
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        Traceback (most recent call last):
+          File "<input>", line 1, in <module>
+        TypeError: initialise() missing 1 required positional argument: 'filename'
+        >>> print(my_sky.is_initialised)
+        False
+        >>> import urllib.request
+        >>> with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...     with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...         fw.write(f.read())
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        >>> print(my_sky.is_initialised)
+        True
 
         Parameters
         ----------
         filename : str
+            the filename that contains the dataset
         single_visibility : float
+            specifies the batch of visibilities to load
+
+        Raises
+        ------
+        DatasetNotFoundException
+            if the specified dataset file could not be found
+        DatasetReadException
+            if an error occurred while reading the dataset file
+
         """
         with open(filename, "rb") as handle:
             self.__read_metadata(handle, single_visibility)
@@ -120,16 +198,42 @@ class PragueSkyModel(object):
         Computes sky radiance only (without direct sun contribution) for given parameters and wavelength (full
         dataset supports wavelengths from 280 nm to 2480 nm).
 
-        Throws NotInitializedException if called without initializing the model first.
+        Examples
+        --------
+        >>> import os
+        >>> from sky.prague import Parameters
+        >>>
+        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
+        >>>     import urllib.request
+        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...             fw.write(f.read())
+        >>>
+        >>> my_sky = PragueSkyModel()
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        >>>
+        >>> parameters = Parameters(
+        ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
+        ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
+        >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350)))
+        array([[0.09110355]])
 
         Parameters
         ----------
         params : Parameters
+            a structure holding all parameters necessary for querying the model
         wavelength : np.ndarray[float]
+            an array specifying the wavelengths to compute the radiance for
 
         Returns
         -------
-        float, np.ndarray[float]
+        np.ndarray[float]
+            the sky radiance for the given parameters and wavelengths
+
+        Raises
+        ------
+        NotInitialisedException
+            when the model is not initialised (calling the initialise method)
         """
         if not self.is_initialised:
             raise NotInitialisedException()
@@ -143,16 +247,42 @@ class PragueSkyModel(object):
 
         Checks whether the parameters correspond to view direction hitting the sun and returns 0 if not.
 
-        Throws NotInitializedException if called without initializing the model first.
+        Examples
+        --------
+        >>> import os
+        >>> from sky.prague import Parameters
+        >>>
+        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
+        >>>     import urllib.request
+        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...             fw.write(f.read())
+        >>>
+        >>> my_sky = PragueSkyModel()
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        >>>
+        >>> parameters = Parameters(
+        ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
+        ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
+        >>> print(my_sky.sun_radiance(parameters, wavelength=np.full(1, 350)))
+        array([[0.]])
 
         Parameters
         ----------
         params : Parameters
+            a structure holding all parameters necessary for querying the model
         wavelength : np.ndarray[float]
+            an array specifying the wavelengths to compute the radiance for
 
         Returns
         -------
         np.ndarray[float]
+            the sun radiance for the given parameters and wavelengths
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
         """
         if not self.is_initialised:
             raise NotInitialisedException()
@@ -193,19 +323,44 @@ class PragueSkyModel(object):
         Computes degree of polarisation for given parameters and wavelength (full
         dataset supports wavelengths from 280 nm to 2480 nm). Can be negative.
 
-        Throws:
-        - NoPolarisationException: if the polarisation method is called but the model does not contain
-        polarisation data
-        - NotInitializedException: if called without initializing the model first
+        Examples
+        --------
+        >>> import os
+        >>> from sky.prague import Parameters
+        >>>
+        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
+        >>>     import urllib.request
+        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...             fw.write(f.read())
+        >>>
+        >>> my_sky = PragueSkyModel()
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        >>>
+        >>> parameters = Parameters(
+        ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
+        ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
+        >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350)))
+        array([[0.13283859]])
 
         Parameters
         ----------
         params : Parameters
+            a structure holding all parameters necessary for querying the model
         wavelength : np.ndarray[float]
+            an array specifying the wavelengths to compute the radiance for
 
         Returns
         -------
-        float
+        np.ndarray[float]
+            the degree of polarisation for the given parameters and wavelengths
+
+        Raises
+        ------
+        NoPolarisationException
+            if the polarisation method is called but the model does not contain polarisation data
+        NotInitializedException
+            if called without initializing the model first
         """
         if not self.is_initialised:
             raise NotInitialisedException()
@@ -222,20 +377,47 @@ class PragueSkyModel(object):
         direction.
 
         Expects the Parameters structure, wavelength (full dataset supports wavelengths from 280 nm
-        to 2480 nm) and the distance (any positive number, use std::numeric_limits<double>::max() for
-        infinity).
+        to 2480 nm) and the distance (any positive number, use np.finfo(float).max for infinity).
 
-        Throws NotInitializedException if called without initializing the model first.
+        Examples
+        --------
+        >>> import os
+        >>> from sky.prague import Parameters
+        >>>
+        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
+        >>>     import urllib.request
+        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...             fw.write(f.read())
+        >>>
+        >>> my_sky = PragueSkyModel()
+        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
+        >>>
+        >>> parameters = Parameters(
+        ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
+        ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
+        >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350), distance=np.finfo(float).max))
+        0.2613840873796399
+        >>> # this should be array([[0.26138409]])
 
         Parameters
         ----------
         params : Parameters
+            a structure holding all parameters necessary for querying the model
         wavelength : np.ndarray[float]
+            an array specifying the wavelengths to compute the radiance for
         distance : float
+            distance in meters of the viewing point from the point of interest
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
 
         Returns
         -------
-        float
+        np.ndarray[float]
+            transmittance between view point and a point certain distance away from it along view direction
         """
         assert distance > 0
 
@@ -288,20 +470,38 @@ class PragueSkyModel(object):
         from [20, 131.8] km, and albedo from [0, 1]. Values outside range of the used dataset are clamped to the
         nearest supported value.
 
+        Examples
+        --------
+        >>> PragueSkyModel.compute_parameters(
+        ...     viewpoint=np.array([0, 0, 0]), view_direction=np.array([[0, 2/np.sqrt(2), 2/np.sqrt(2)]]),
+        ...     ground_level_solar_elevation_at_origin=np.pi/4, ground_level_solar_azimuth_at_origin= np.pi,
+        ...     visibility=50, albedo=0.5)
+        Parameters(theta=array([0.78539816]), gamma=array([1.04719755]), shadow=array([1.04558706]), zero=array([0.7826061]), elevation=0.7853981633974483, altitude=50.0, visibility=50, albedo=0.5)
+        >>> PragueSkyModel.compute_parameters(
+        ...     viewpoint=np.array([0, 0, 0]), view_direction=np.array([[0, 1, 0]]),
+        ...     ground_level_solar_elevation_at_origin=np.pi/3, ground_level_solar_azimuth_at_origin= np.pi,
+        ...     visibility=50, albedo=0.5)
+        Parameters(theta=array([1.57079633]), gamma=array([1.57079633]), shadow=array([1.56881652]), zero=array([1.56683671]), elevation=1.0471975511965976, altitude=50.0, visibility=50, albedo=0.5)
+
         Parameters
         ----------
-        viewpoint : np.ndarray
-        view_direction : np.ndarray
+        viewpoint : np.ndarray[float]
+            a vector determining the view point on Earth
+        view_direction : np.ndarray[float]
+            vectors determining the view direction
         ground_level_solar_elevation_at_origin : float
-            in rad
+            ground level solar elevation at origin (in rad)
         ground_level_solar_azimuth_at_origin : float
-            in rad
+            ground level solar azimuth at origin (in rad)
         visibility : float
+            ground level visibility in kilometers
         albedo : float
+            ground level albedo
 
         Returns
         -------
         Parameters
+            a structure holding all parameters necessary for querying the model
         """
 
         assert viewpoint[2] >= 0
@@ -385,11 +585,14 @@ class PragueSkyModel(object):
         """
         Gets parameter ranges available in currently loaded dataset.
 
-        Throws NotInitializedException if called without initializing the model first.
-
         Returns
         -------
         AvailableData
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
         """
         if not self.is_initialised:
             raise NotInitialisedException()
@@ -411,10 +614,29 @@ class PragueSkyModel(object):
 
     @property
     def is_initialised(self):
+        """
+        True when the model has been initialised, False otherwise.
+
+        Returns
+        -------
+        bool
+        """
         return self.__initialised
 
     @property
     def nb_channels(self):
+        """
+        The number of channels (wavelengths) in the dataset.
+
+        Returns
+        -------
+        int
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -422,6 +644,18 @@ class PragueSkyModel(object):
 
     @property
     def channel_start(self):
+        """
+        The first channel (wavelength) available in the dataset.
+
+        Returns
+        -------
+        float
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -429,6 +663,18 @@ class PragueSkyModel(object):
 
     @property
     def channel_width(self):
+        """
+        The range of each of the channels (wavelengths) in the dataset.
+
+        Returns
+        -------
+        float
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -436,6 +682,18 @@ class PragueSkyModel(object):
 
     @property
     def total_configs(self):
+        """
+        The total number of configurations in the dataset.
+
+        Returns
+        -------
+        int
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -443,6 +701,18 @@ class PragueSkyModel(object):
 
     @property
     def visibilities_rad(self):
+        """
+        The different visibility bins in the dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -450,6 +720,18 @@ class PragueSkyModel(object):
 
     @property
     def albedos_rad(self):
+        """
+        The different albedo bins in the dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -457,6 +739,18 @@ class PragueSkyModel(object):
 
     @property
     def altitudes_rad(self):
+        """
+        The different altitude bins in the dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -464,6 +758,18 @@ class PragueSkyModel(object):
 
     @property
     def elevations_rad(self):
+        """
+        The different elevation bins in the dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -471,6 +777,18 @@ class PragueSkyModel(object):
 
     @property
     def metadata_rad(self):
+        """
+        Metadata of the radiance dataset.
+
+        Returns
+        -------
+        Metadata
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -478,6 +796,18 @@ class PragueSkyModel(object):
 
     @property
     def data_rad(self):
+        """
+        The radiance dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -485,6 +815,18 @@ class PragueSkyModel(object):
 
     @property
     def d_dim(self):
+        """
+        The number of dimensions of the distances in the transmittance data.
+
+        Returns
+        -------
+        int
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -492,6 +834,18 @@ class PragueSkyModel(object):
 
     @property
     def a_dim(self):
+        """
+        The number of dimensions of the altitudes in the transmittance data.
+
+        Returns
+        -------
+        int
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -499,6 +853,18 @@ class PragueSkyModel(object):
 
     @property
     def rank_trans(self):
+        """
+        The number of ranks available in the transmittance data.
+
+        Returns
+        -------
+        int
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -506,6 +872,18 @@ class PragueSkyModel(object):
 
     @property
     def altitudes_trans(self):
+        """
+        The different altitude bins in the transmittance dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -513,6 +891,18 @@ class PragueSkyModel(object):
 
     @property
     def visibilities_trans(self):
+        """
+        The different visibility bins in the transmittance dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -520,6 +910,18 @@ class PragueSkyModel(object):
 
     @property
     def data_trans_u(self):
+        """
+        The U component of the transmittance data.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -527,6 +929,18 @@ class PragueSkyModel(object):
 
     @property
     def data_trans_v(self):
+        """
+        The V component of the transmittance data.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -534,6 +948,18 @@ class PragueSkyModel(object):
 
     @property
     def metadata_pol(self):
+        """
+        Metadata of the polarisation dataset.
+
+        Returns
+        -------
+        Metadata
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -541,6 +967,18 @@ class PragueSkyModel(object):
 
     @property
     def data_pol(self):
+        """
+        The polarisation dataset.
+
+        Returns
+        -------
+        np.ndarray[float]
+
+        Raises
+        ------
+        NotInitializedException
+            if called without initializing the model first.
+        """
         if not self.is_initialised:
             raise NotInitialisedException()
 
@@ -1001,7 +1439,7 @@ class PragueSkyModel(object):
         coefs = self.__get_coefficients_trans(visibility_index, altitude_index, channel_index)
 
         # Load transmittance values for bi-linear interpolation
-        transmittance = np.zeros((self.__nb_channels, 4, trans_params.altitude.index.size), dtype='float64')
+        transmittance = np.zeros((channel_index.size, 4, trans_params.altitude.index.size), dtype='float64')
 
         a = np.linspace(trans_params.altitude.index, trans_params.altitude.index + 1, 2, dtype='int32')
         d = np.linspace(trans_params.distance.index, trans_params.distance.index + 1, 2, dtype='int32')
@@ -1103,38 +1541,50 @@ class PragueSkyModel(object):
 
         Used for albedo, elevation, altitude, visibility and angles (theta, alpha, or gamma).
 
+        Examples
+        --------
+        >>> PragueSkyModel.get_interpolation_parameter(query_val=5.6, breaks=np.arange(2, 10))
+        InterpolationParameter(factor=0.5999999999999996, index=3)
+        >>> PragueSkyModel.get_interpolation_parameter(query_val=1.1, breaks=np.arange(2, 10))
+        InterpolationParameter(factor=array(0.), index=0)
+        >>> PragueSkyModel.get_interpolation_parameter(query_val=2.1, breaks=np.arange(2, 10))
+        InterpolationParameter(factor=array(0.10000000000000009), index=0)
+        >>> PragueSkyModel.get_interpolation_parameter(query_val=8.1, breaks=np.arange(2, 10))
+        InterpolationParameter(factor=array(0.09999999999999964), index=0)
+
         Parameters
         ----------
         query_val : float, np.ndarray[float]
+            the query value
         breaks : np.ndarray[float]
+            the break values for interpolation
 
         Returns
         -------
         InterpolationParameter
+            the lowest indices in the breaks array whose values are close to the query values, and a factor that shows
+            how bigger is the query value (towards the next index)
         """
 
         # Clamp the value to the valid range
         clamped = np.float64(np.clip(query_val, breaks[0], breaks[-1]))
 
-        one = 1
-
         # Get the nearest greater parameter value
-        next_greater = np.searchsorted(breaks[1:], clamped, side='right') + one
-        # next_greater = bisect_right(breaks[:, None], clamped[None, ...], 1)
+        next_greater = np.searchsorted(breaks, clamped, side='left') - 1
 
         # Compute the index and float factor
-        index = next_greater - one
-        factor = np.zeros(index.shape, dtype='float64')
-        factor_valid = np.all([one < next_greater, next_greater < (len(breaks) - one)], axis=0)
+        factor = np.zeros(next_greater.shape, dtype='float64')
+        factor_valid = np.all([0 <= next_greater, next_greater < len(breaks) - 1], axis=0)
         if factor.size == 1 and factor_valid:
-            factor = (float(clamped - breaks[next_greater - one]) /
-                      float(breaks[next_greater + 1 - one] - breaks[next_greater - one]))
+            factor = (float(clamped - breaks[next_greater]) /
+                      float(breaks[next_greater + 1] - breaks[next_greater]))
         else:
-            factor[factor_valid] = (np.float64(clamped[factor_valid] - breaks[next_greater[factor_valid] - one]) /
-                                    np.float64(breaks[next_greater[factor_valid] + 1 - one] -
-                                               breaks[next_greater[factor_valid] - one]))
+            factor[factor_valid] = (np.float64(clamped[factor_valid] - breaks[next_greater[factor_valid]]) /
+                                    np.float64(breaks[next_greater[factor_valid] + 1] -
+                                               breaks[next_greater[factor_valid]]))
 
-        assert np.all([0 <= index, index < len(breaks), np.any([index < len(breaks) - 1, factor == 0], axis=0)])
+        assert np.all([0 <= next_greater, next_greater < len(breaks),
+                       np.any([next_greater < len(breaks) - 1, factor == 0], axis=0)])
         assert np.all([0 <= factor, factor <= 1]), (
             f"Factor must be in range [0, 1]. "
             f"Out of the {len(factor)} factors, there were "
@@ -1142,22 +1592,38 @@ class PragueSkyModel(object):
             f"{np.sum(np.any([factor > 1], axis=0))} factors > 1."
         )
 
-        return InterpolationParameter(factor=factor, index=index)
+        return InterpolationParameter(factor=factor, index=next_greater)
 
     @staticmethod
     def get_interpolation_parameter_trans(value, param_count, power):
         """
         Converts altitude or distance value used in the transmittance model into interpolation parameter.
 
+        Examples
+        --------
+        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 4)
+        InterpolationParameter(factor=array([0.0256]), index=array([0]))
+        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 3)
+        InterpolationParameter(factor=array([0.064]), index=array([0]))
+        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.1), 2, 3)
+        InterpolationParameter(factor=array([0.008]), index=array([0]))
+        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.5), 2, 3)
+        InterpolationParameter(factor=array([0.]), index=array([1]))
+
         Parameters
         ----------
         value : np.ndarray[float]
+            the altitude or distance query values
         param_count : int
+            the number of parameters
         power : int
+            power for the non-linear interpolation
 
         Returns
         -------
         InterpolationParameter
+            the lowest indices in the number of parameters whose values are close to the query values, and
+            a factor that shows how bigger is the query value (towards the next index)
         """
         index = np.minimum(np.int32(value * param_count), param_count - 1)
         factor = np.zeros(value.shape, dtype='float64')
@@ -1167,25 +1633,43 @@ class PragueSkyModel(object):
                                            np.float64(index[in_range] + 1) / param_count,
                                            value[in_range], power), 0, 1)
 
-        # if index < param_count - 1:
-        #     factor = nonlerp(float(index) / param_count, float(index + 1) / param_count, value, power)
-        #     factor = np.clip(factor, 0, 1)
         return InterpolationParameter(factor, index)
 
     @staticmethod
-    def reconstruct(radiance_parameters, channel_parameters, metadata):
+    def reconstruct(radiance_parameters, control_parameters, metadata):
         """
         Reconstructs sky radiance or polarisation from the given control parameters by inverse tensor decomposition.
+
+        Examples
+        --------
+        >>> from sky.prague.skytypes import AngleParameters, Metadata
+        >>> rad_params = AngleParameters(
+        ...     gamma=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
+        ...     alpha=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
+        ...     zero=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
+        ... )
+        >>> con_params = np.linspace(1, 2, 25).reshape((1, 1, -1))
+        >>> meta = Metadata(
+        ...     rank=1, sun_offset=0, sun_stride=20, sun_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
+        ...     zenith_offset=10, zenith_stride=20, zenith_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
+        ...     emph_offset=20, emph_breaks=np.linspace(0, 2*np.pi, 5),
+        ...     total_coefs_single_config=25, total_coefs_all_config=25)
+        >>> PragueSkyModel.reconstruct(rad_params, con_params, meta)
+        3.7738715277777772
 
         Parameters
         ----------
         radiance_parameters : AngleParameters
-        channel_parameters : np.ndarray[float]
+            the gamma, alpha, and zero interpolation parameters
+        control_parameters : np.ndarray[float]
+            the parameters that control the interpolation
         metadata : Metadata
+            the metadata of the dataset
 
         Returns
         -------
-        float
+        np.ndarray[float]
+            an array with the radiance or polarisation on the given parameters
         """
 
         result = 0.0
@@ -1193,13 +1677,13 @@ class PragueSkyModel(object):
             # Restore the right value in the 'sun' vector
             i_sun = r * metadata.sun_stride + metadata.sun_offset + radiance_parameters.gamma.index
             sun_param = eval_pl(
-                np.array([channel_parameters[0, ..., i_sun].T, channel_parameters[0, ..., i_sun+1].T]),
+                np.array([control_parameters[0, ..., i_sun].T, control_parameters[0, ..., i_sun + 1].T]),
                 radiance_parameters.gamma.factor)
 
             # Restore the right value in the 'zenith' vector
             i_zen = r * metadata.zenith_stride + metadata.zenith_offset + radiance_parameters.alpha.index
             zenith_param = eval_pl(
-                np.array([channel_parameters[0, ..., i_zen].T, channel_parameters[0, ..., i_zen+1].T]),
+                np.array([control_parameters[0, ..., i_zen].T, control_parameters[0, ..., i_zen + 1].T]),
                 radiance_parameters.alpha.factor)
 
             # Accumulate their "outer" product
@@ -1209,7 +1693,7 @@ class PragueSkyModel(object):
         if metadata.emph_breaks is not None and len(metadata.emph_breaks) > 0:
             i_emp = metadata.emph_offset + radiance_parameters.zero.index
             emph_param = eval_pl(
-                np.array([channel_parameters[0, ..., i_emp].T, channel_parameters[0, ..., i_emp+1].T]),
+                np.array([control_parameters[0, ..., i_emp].T, control_parameters[0, ..., i_emp + 1].T]),
                 radiance_parameters.zero.factor)
             result *= emph_param
             result = np.maximum(result, 0)
@@ -1222,17 +1706,45 @@ class PragueSkyModel(object):
         Recursive function controlling interpolation of reconstructed radiance between two neighboring visibility,
         albedo, altitude and elevation values.
 
+        Examples
+        --------
+        >>> from sky.prague.skytypes import AngleParameters, Metadata
+        >>> rad_params = AngleParameters(
+        ...     gamma=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
+        ...     alpha=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
+        ...     zero=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
+        ... )
+        >>> meta = Metadata(
+        ...     rank=1, sun_offset=0, sun_stride=20, sun_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
+        ...     zenith_offset=10, zenith_stride=20, zenith_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
+        ...     emph_offset=20, emph_breaks=np.linspace(0, 2*np.pi, 5),
+        ...     total_coefs_single_config=25, total_coefs_all_config=25)
+        >>> con_params = ControlParameters(
+        ...     coefficients=np.linspace(1, 2, 400).reshape((16, 1, -1)), interpolation_factor=np.full(4, 0.5))
+        >>> PragueSkyModel.interpolate(0, 0, rad_params, con_params, meta)
+        3.7849231639975813
+        >>> con_params = ControlParameters(
+        ...     coefficients=np.linspace(1, 2, 400).reshape((16, 1, -1)), interpolation_factor=np.full(4, 0.1))
+        >>> PragueSkyModel.interpolate(0, 0, rad_params, con_params, meta)
+        1.5509193631562281
+
         Parameters
         ----------
         t_offset : int
+            offset of the coefficients
         t_level : int
+            the interpolation level in [1-4]
         angle_parameters : AngleParameters
+            the gamma, alpha, and zero interpolation parameters
         control_parameters : ControlParameters
+            the parameters that control the interpolation
         metadata : Metadata
+            the metadata of the dataset
 
         Returns
         -------
         float
+            an array with the radiance or polarisation on the given parameters after the interpolation
         """
 
         # Starts at level 0 and recursively goes down to level 4 while computing offset to the control
@@ -1272,7 +1784,7 @@ def eval_pl(coefs, factor):
 
     Parameters
     ----------
-    coefs : np.ndarray[float], list
+    coefs : np.ndarray[float]
     factor : float
 
     Returns
@@ -1368,7 +1880,6 @@ def isect_to_altitude_distance(isect_x, isect_y):
     return altitude, distance
 
 
-# @njit(parallel=True)
 def read_rad_parallel(data_list, data_set, rank, len_sun_breaks, len_zenith_breaks, len_emph_breaks):
     total_config, single_config = data_set.shape
     list_offset = 0
@@ -1401,694 +1912,3 @@ def read_rad_parallel(data_list, data_set, rank, len_sun_breaks, len_zenith_brea
         data_set[con, offset:len_emph_breaks+offset] = double_temp
         list_offset += len_emph_breaks
         offset += len_emph_breaks
-
-
-@vectorize(["float64(uint16)"], nopython=True)
-def half2double(half):
-    h_sig = float(half >> 15)
-    h_exp = float(max((half & 0x7fff) >> 10, 1))
-    h_fra = float(half & 0x0400)
-
-    return (-1) ** h_sig * 2 ** (h_exp - 15) * (h_fra / 1024)
-
-# @vectorize(["uint64(uint16)"], nopython=True)
-# def half2double(half):
-#     half = half & 0xfff  # make sure it's uint16
-#     hi = ((half & 0x8000) << 16) & 0xffffffff  # uint32
-#     ab = half & 0x7fff  # uint16
-#     if ab:
-#         hi = hi | (0x3f000000 << (int(ab >= 0x7c00) & 0xffff))
-#         while ab < 0x400:
-#             ab = (ab << 1) & 0xffff
-#             hi = (hi - 0x100000) & 0xffffffff
-#         # hi = (hi + (ab & 0xffffffff) << 10) & 0xffffffff
-#         hi = (hi + ((ab & 0xffffffff) << 10)) & 0xffffffff
-#     d_bits = (hi << 32) & 0xffffffffffffffff
-#     # d_bytes = struct.pack('Q', d_bits)
-#     # d_float, = struct.unpack('d', d_bytes)
-#
-#     return d_bits
-#     # return float(d_float if not np.isnan(d_float) else 0.)
-
-# def find_segment(x, breaks):
-#     segment = 0
-#     for segment in range(len(breaks)):
-#         if breaks[segment+1] > x:
-#             break
-#     return segment
-
-
-# def eval_pp(x, segment, breaks, coefs):
-#     x0 = x - breaks[segment]
-#     sc = coefs[2 * segment:]  # segment coefs
-#     return sc[0] * x0 + sc[1]
-
-
-# def control_params_single_config(state: SkyModelState, dataset, total_coef_single_config,
-#                                  elevation, altitude, turbidity, albedo, wavelength):
-#     return dataset[total_coef_single_config * (
-#             wavelength +
-#             state.channels * elevation +
-#             state.channels * len(state.elevations) + altitude +
-#             state.channels * len(state.elevations) * len(state.altitudes) * albedo +
-#             state.channels * len(state.elevations) * len(state.altitudes) * len(state.albedos) * turbidity)]
-
-
-# def reconstruct(state: SkyModelState, gamma, alpha, zero, gamma_segment, alpha_segment, zero_segment, control_params):
-#     res: float = 0
-#     for t in range(state.tensor_components):
-#         sun_val_t = eval_pp(
-#             gamma, gamma_segment, state.sun_breaks, control_params[state.sun_offset + t * state.sun_stride]
-#         )
-#         zenith_val_t = eval_pp(
-#             alpha, alpha_segment, state.zenith_breaks, control_params[state.zenith_offset + t * state.zenith_stride]
-#         )
-#         res += sun_val_t * zenith_val_t
-#         emph_val_t = eval_pp(
-#             zero, zero_segment, state.emph_breaks, control_params[state.emph_offset]
-#         )
-#         res *= emph_val_t
-#
-#     return np.maximum(res, 0)
-
-
-# def map_parameter(param, values):
-#     if param < values[0]:
-#         mapped: float = 0
-#     elif param > values[-1]:
-#         mapped: float = len(values) - 1
-#     else:
-#         for v, val in enumerate(values):
-#             if abs(val - param) < 1e-6:
-#                 mapped: float = v
-#                 break
-#             elif param < val:
-#                 mapped: float = v - (val - param) / (val - values[v - 1])
-#                 break
-#     return mapped
-
-
-# def interpolate_elevation(state: SkyModelState, elevation, altitude, turbidity, albedo, wavelength, gamma, alpha, zero,
-#                           gamma_segment, alpha_segment, zero_segment):
-#     elevation_low = float(int(elevation))
-#     factor = elevation - elevation_low
-#
-#     control_params_low = control_params_single_config(
-#         state, state.radiance_dataset, state.total_coefs_single_config,
-#         elevation_low, altitude, turbidity, albedo, wavelength
-#     )
-#     res_low = reconstruct(
-#         state, gamma, alpha, zero, gamma_segment, alpha_segment, zero_segment, control_params_low
-#     )
-#     if factor < 01e-6 or elevation_low >= len(state.elevations) - 1:
-#         return res_low
-#
-#     control_params_high = control_params_single_config(
-#         state, state.radiance_dataset, state.total_coefs_single_config,
-#         elevation_low+1, altitude, turbidity, albedo, wavelength
-#     )
-#     res_high = reconstruct(
-#         state, gamma, alpha, zero, gamma_segment, alpha_segment, zero_segment, control_params_high
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_altitude(state: SkyModelState, elevation, altitude, turbidity, albedo, wavelength, gamma, alpha, zero,
-#                          gamma_segment, alpha_segment, zero_segment):
-#     altitude_low = float(int(altitude))
-#     factor = altitude - altitude_low
-#
-#     res_low = interpolate_elevation(
-#         state, elevation, altitude_low, turbidity, albedo, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     if factor < 01e-6 or altitude_low >= (len(state.altitudes) - 1):
-#         return res_low
-#     res_high = interpolate_elevation(
-#         state, elevation, altitude_low + 1, turbidity, albedo, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_turbidity(state: SkyModelState, elevation, altitude, turbidity, albedo, wavelength, gamma, alpha, zero,
-#                           gamma_segment, alpha_segment, zero_segment):
-#     turbidity_low = float(int(turbidity))
-#     factor = turbidity - turbidity_low
-#
-#     res_low = interpolate_altitude(
-#         state, elevation, altitude, turbidity_low, albedo, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     if factor < 01e-6 or turbidity_low >= (len(state.turbidities) - 1):
-#         return res_low
-#     res_high = interpolate_altitude(
-#         state, elevation, altitude, turbidity_low + 1, albedo, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_albedo(state: SkyModelState, elevation, altitude, turbidity, albedo, wavelength, gamma, alpha, zero,
-#                        gamma_segment, alpha_segment, zero_segment):
-#     albedo_low = float(int(albedo))
-#     factor = albedo - albedo_low
-#
-#     res_low = interpolate_turbidity(
-#         state, elevation, altitude, turbidity, albedo_low, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     if factor < 01e-6 or albedo_low >= (len(state.albedos) - 1):
-#         return res_low
-#     res_high = interpolate_turbidity(
-#         state, elevation, altitude, turbidity, albedo_low + 1, wavelength, gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_wavelengths(state: SkyModelState, elevation, altitude, turbidity, albedo, wavelength,
-#                             gamma, alpha, zero, gamma_segment, alpha_segment, zero_segment):
-#     # Don't interpolate, use the bin it belongs to
-#     return interpolate_albedo(
-#         state, elevation, altitude, turbidity, albedo, float(int(wavelength)), gamma, alpha, zero,
-#         gamma_segment, alpha_segment, zero_segment
-#     )
-
-
-# def sky_model_radiance(state, theta, gamma, shadow, zero, elevation, altitude, turbidity, albedo, wavelength):
-#     """
-#
-#     Parameters
-#     ----------
-#     state : SkyModelState
-#     theta : float
-#     gamma : float
-#     shadow : float
-#     zero : float
-#     elevation : float
-#     altitude : float
-#     turbidity : float
-#     albedo : float
-#     wavelength : float
-#
-#     Returns
-#     -------
-#     float
-#     """
-#
-#     # translate parameter values to indices
-#     turbidity_control = map_parameter(turbidity, state.turbidities)
-#     albedo_control = map_parameter(albedo, state.albedos)
-#     altitude_control = map_parameter(altitude, state.altitudes)
-#     elevation_control = map_parameter(elevation, state.elevations)
-#
-#     channel_control = (wavelength - state.channel_start) / state.channel_width
-#
-#     if channel_control >= state.channels or channel_control < 0:
-#         return 0.
-#
-#     # Get params corresponding to the indices, reconstruct result and interpolate
-#
-#     alpha = shadow if elevation < 0 else zero
-#     gamma_segment = find_segment(gamma, state.sun_breaks)
-#     alpha_segment = find_segment(alpha, state.zenith_breaks)
-#     zero_segment = find_segment(zero, state.emph_breaks)
-#
-#     res = interpolate_wavelengths(
-#         state, elevation_control, altitude_control, turbidity_control, albedo_control, channel_control,
-#         gamma, alpha, zero, gamma_segment, alpha_segment, zero_segment
-#     )
-#
-#     return res
-
-
-# def sky_model_solar_radiance(state, theta, gamma, shadow, zero, elevation, altitude, turbidity, albedo, wavelength):
-#     """
-#     This computes transmittance between a point at 'altitude' and infinity in
-#     the direction 'theta' at a wavelength 'wavelength'.
-#
-#     Parameters
-#     ----------
-#     state : SkyModelState
-#     theta : float
-#     gamma : float
-#     shadow : float
-#     zero : float
-#     elevation : float
-#     altitude : float
-#     turbidity : float
-#     albedo : float
-#     wavelength : float
-#
-#     Returns
-#     -------
-#     float
-#     """
-#     idx = (wavelength - sun_rad_star_wl) / sun_rad_increment_wl
-#     sun_radiance = 0
-#
-#     if idx >= 0:
-#         low_idx = int(idx)
-#         idx_float = idx - float(low_idx)
-#
-#         sun_radiance = sun_rad_table[low_idx] * (1 - idx_float) + sun_rad_table[low_idx + 1] * idx_float
-#
-#     tau = sky_model_tau(state, theta, altitude, turbidity, wavelength, np.infty)
-#
-#     return sun_radiance * tau
-
-
-# def sky_model_circle_bounds_2d(x_v: float, y_v: float, y_c: float, radius: float):
-#     qa = x_v * x_v + y_v * y_v
-#     qb = 2.0 * y_c * y_v
-#     qc = y_c * y_c - radius * radius
-#     n = qb * qb - 4.0 * qa * qc
-#
-#     if n <= 0:
-#         return 0.
-#
-#     n = np.sqrt(n)
-#     d1 = (-qb + n) / (2.0 * qa)
-#     d2 = (-qb - n) / (2.0 * qa)
-#     d = np.minimum(d1, d2) if (d1 > 0 and d2 > 0) else np.maximum(d1, d2)
-#
-#     return d > 0, d
-
-
-# def sky_model_scale_ad(x_p: float, y_p: float):
-#     n = np.sqrt(x_p * x_p + y_p * y_p)
-#
-#     a = n - PSM_PLANET_RADIUS
-#     a = np.maximum(a, 0)
-#     a = np.power(a / 100000, 1 / 3)
-#
-#     d = np.arccos(y_p / n) * PSM_PLANET_RADIUS
-#     d = d / 1571524.413613  # Maximum distance to the edge of the atmosphere in the transmittance model
-#     d = np.power(d, 0.25)
-#     d = np.minimum(d, 1)
-#
-#     return a, d
-
-
-# def sky_model_to_ad(theta, distance, altitude):
-#     """
-#
-#     Parameters
-#     ----------
-#     theta : float
-#     distance : float
-#     altitude : float
-#
-#     Returns
-#     -------
-#     float
-#     """
-#     x_v = np.sin(theta)
-#     y_v = np.cos(theta)
-#     x_c = 0
-#     y_c = PSM_PLANET_RADIUS + altitude
-#     atmo_edge = PSM_PLANET_RADIUS + 90000
-#
-#     # Handle altitudes close to 0 separately to avoid reporting intersection on the other side of the planet
-#     if altitude < 0.001:
-#         if theta <= 0.5 * np.pi:
-#             n_greater_than_0, n = sky_model_circle_bounds_2d(x_v, y_v, y_c, atmo_edge)
-#             if not n_greater_than_0:
-#                 # Then we have a problem!
-#                 # Return something, but this should never happen so long as the camera is inside the atmosphere
-#                 # which it should be in this work
-#                 a = 0.
-#                 d = 0.
-#                 return a, d
-#         else:
-#             n = 0.
-#     else:
-#         n_greater_than_0, n = sky_model_circle_bounds_2d(x_v, y_v, y_c, PSM_PLANET_RADIUS)
-#         if n_greater_than_0:  # Check for planet intersection
-#             if n <= distance:  # We do intersect the planet so return a and d at the surface
-#                 x_p = x_v * n
-#                 y_p = y_v * n + PSM_PLANET_RADIUS + altitude
-#                 a, d = sky_model_scale_ad(x_p, y_p)
-#                 return a, d
-#         n_greater_than_0, n = sky_model_circle_bounds_2d(x_v, y_v, y_c, atmo_edge)
-#         if not n_greater_than_0:
-#             # Then we have a problem!
-#             # Return something, but this should never happen so long as the camera is inside the atmosphere
-#             # which it should be in this work
-#             a = 0
-#             d = 0
-#             return a, d
-#
-#     # Use the smaller of the distances
-#     distance_corrected = np.minimum(distance, n)
-#
-#     # Points in world space
-#     x_p = x_v * distance_corrected
-#     y_p = y_v * distance_corrected + PSM_PLANET_RADIUS + altitude
-#     a, d = sky_model_scale_ad(x_p, y_p)
-#
-#     return a, d
-
-
-# def sky_model_transmittance_coefs_index(state: SkyModelState, turbidity: int, altitude: int, wavelength: int):
-#     transmittance_values_per_turbidity = state.trans_rank * 11 * state.trans_altitudes
-#     return state.transmission_dataset_V[
-#         turbidity * transmittance_values_per_turbidity + (altitude * 11 + wavelength) * state.trans_rank]
-
-#
-# def sky_model_calc_transmittance_interpolate_wavelength(state: SkyModelState, turbidity: int, altitude: int,
-#                                                         wavelength_low: int, wavelength_inc: int, wavelength_w: float):
-#     wll = sky_model_transmittance_coefs_index(state, turbidity, altitude, wavelength_low)
-#     wlu = sky_model_transmittance_coefs_index(state, turbidity, altitude, wavelength_low + wavelength_inc)
-#
-#     coefficients = np.zeros(state.trans_rank, dtype='float64')
-#     for i in range(state.trans_rank):
-#         coefficients[i] = lerp(wll[i], wlu[i], wavelength_w)
-#
-#     return coefficients
-#
-#
-# def sky_model_calc_transmittance_svd_altitude(state: SkyModelState, turbidity: int, altitude: int,
-#                                               wavelength_low: int, wavelength_inc: int, wavelength_factor: float,
-#                                               a_int: int, d_int: int, a_inc: int, d_inc: int, wa: float, wd: float):
-#     t = np.zeros(4, dtype='float32')
-#
-#     interpolated_coefficients = sky_model_calc_transmittance_interpolate_wavelength(
-#         state, turbidity, altitude, wavelength_low, wavelength_inc, wavelength_factor)
-#
-#     index = 0
-#     for al in range(a_int, a_int + a_inc + 1):
-#         for dl in range(d_int, d_int + d_inc + 1):
-#             for i in range(state.trans_rank):
-#                 t[index] = t[index] + state.transmission_dataset_U[
-#                     altitude * state.trans_n_a * state.trans_n_d * state.trans_rank +
-#                     (dl * state.trans_n_a + al) * state.trans_rank + i
-#                 ] * interpolated_coefficients[i]
-#             index += 1
-#     if d_inc == 1:
-#         t[0] = lerp(t[0], t[1], wd)
-#         t[1] = lerp(t[2], t[3], wd)
-#     if a_inc == 1:
-#         t[0] = lerp(t[0], t[1], wa)
-#
-#     return t[0]
-#
-#
-# def sky_model_calc_transittance_svd(state: SkyModelState, a: float, d: float, turbidity: int,
-#                                     wavelength_low: int, wavelength_inc: int, wavelength_factor: float,
-#                                     altitude_low: int, altitude_inc: int, altitude_factor: float):
-#     a_int = int(np.floor(a * float(state.trans_n_a)))
-#     d_int = int(np.floor(d * float(state.trans_n_d)))
-#     a_inc = 0
-#     d_inc = 0
-#     wa = (a * float(state.trans_n_a)) - float(a_int)
-#     wd = (d * float(state.trans_n_d)) - float(d_int)
-#
-#     if a_int < state.trans_n_a - 1:
-#         a_inc = 1
-#         wa = nonlerp(float(a_int) / float(state.trans_n_a), float(a_int + a_inc) / float(state.trans_n_a), a, 3)
-#     else:
-#         a_int = state.trans_n_a - 1
-#         wa = 0
-#
-#     if d_int < state.trans_n_d - 1:
-#         d_inc = 1
-#         wd = nonlerp(float(d_int) / float(state.trans_n_d), float(d_int + d_inc) / float(state.trans_n_d), d, 4)
-#     else:
-#         d_int = state.trans_n_d - 1
-#         wd = 0
-#
-#     wa = float(np.clip(wa, 0, 1))
-#     wd = float(np.clip(wd, 0, 1))
-#
-#     trans = np.zeros(2, dtype='float32')
-#     trans[0] = sky_model_calc_transmittance_svd_altitude(state, turbidity, altitude_low,
-#                                                          wavelength_low, wavelength_inc, wavelength_factor,
-#                                                          a_int, d_int, a_inc, d_inc, wa, wd)
-#     if altitude_inc == 1:
-#         trans[1] = sky_model_calc_transmittance_svd_altitude(state, turbidity, altitude_low + altitude_inc,
-#                                                              wavelength_low, wavelength_inc, wavelength_factor,
-#                                                              a_int, d_int, a_inc, d_inc, wa, wd)
-#         trans[0] = lerp(trans[0], trans[1], altitude_factor)
-#
-#     return trans[0]
-#
-#
-# def cbrt(x: float):
-#     return np.power(x, 1 / 3)
-#
-#
-# def sky_model_find_in_array(arr: np.ndarray, value: float):
-#     index = 0
-#     inc = 0
-#     w = 0
-#
-#     if value <= arr[0]:
-#         index = 0
-#         w = 1
-#         return index, inc, w
-#
-#     if value >= arr[-1]:
-#         index = len(arr) - 1
-#         w = 0
-#         return index, inc, w
-#
-#     for i in range(len(arr)):
-#         if value < arr[i]:
-#             index = i - 1
-#             inc = 1
-#             w = (value - arr[i - 1]) / (arr[i] - arr[i - 1])  # Assume linear
-#             return index, inc, w
-#
-#     return index, inc, w
-#
-#
-# def sky_model_tau(state, theta, altitude, turbidity, wavelength, distance):
-#     """
-#     This computes transmittance between a point at 'altitude' and infinity in
-#     the direction 'theta' at a wavelength 'wavelength'.
-#
-#     Parameters
-#     ----------
-#     state : SkyModelState
-#     theta : float
-#     altitude : float
-#     turbidity : float
-#     wavelength : float
-#     distance : float
-#
-#     Returns
-#     -------
-#     float
-#     """
-#     assert isinstance(theta, float) and 0 <= theta <= np.pi
-#     assert isinstance(altitude, float) and 0 <= altitude <= 150000
-#     assert isinstance(turbidity, float) and 0 <= turbidity
-#     assert isinstance(wavelength, float) and 0 < wavelength
-#     assert isinstance(distance, float) and 0 < distance
-#
-#     wavelength_norm = (wavelength - state.channel_start) / state.channel_width
-#     if wavelength_norm >= state.channels or wavelength_norm < 0:
-#         return 0
-#
-#     wavelength_low = int(wavelength_norm)
-#     wavelength_factor: float = 0
-#     wavelength_inc: int = 1 if wavelength_low < 10 else 0
-#
-#     assert isinstance(wavelength_low, int) and 0 <= wavelength_low <= 10
-#     assert isinstance(wavelength_inc, int) and 0 <= wavelength_inc <= 1
-#     assert isinstance(wavelength_factor, float) and 0 <= wavelength_factor <= 1
-#
-#     altitude_low, altitude_inc, altitude_factor = sky_model_find_in_array(state.transmission_altitudes, altitude)
-#
-#     assert isinstance(altitude_low, int) and 0 <= altitude_low <= 21
-#     assert isinstance(altitude_inc, int) and 0 <= altitude_inc <= 1
-#     assert isinstance(altitude_factor, float) and 0 <= altitude_factor <= 1
-#
-#     turb_low, turb_inc, turb_w = sky_model_find_in_array(state.transmission_turbidities, turbidity)
-#
-#     assert isinstance(turb_low, int) and 0 <= turb_low <= 2
-#     assert isinstance(turb_inc, int) and 0 <= turb_inc <= 1
-#     assert isinstance(turb_w, float) and 0 <= turb_w <= 1
-#
-#     # Calculate normalised and non-linearly scaled position in the atmosphere
-#     a, d = sky_model_to_ad(theta, distance, altitude)
-#
-#     assert isinstance(a, float) and 0 <= a
-#     assert isinstance(d, float) and 0 <= d
-#
-#     # Evaluate basis at low turbidity
-#     trans_low = sky_model_calc_transittance_svd(state, a, d, turb_low,
-#                                                 wavelength_low, wavelength_inc, wavelength_factor,
-#                                                 altitude_low, altitude_inc, altitude_factor)
-#
-#     # Evaluate basis at high turbidity
-#     trans_high = sky_model_calc_transittance_svd(state, a, d, turb_low + turb_inc,
-#                                                  wavelength_low, wavelength_inc, wavelength_factor,
-#                                                  altitude_low, altitude_inc, altitude_factor)
-#
-#     # Return interpolated transmittance values
-#     trans = lerp(trans_low, trans_high, turb_w)
-#     trans = np.clip(trans, 0, 1)
-#
-#     return trans * trans
-#
-#
-# def reconstruct_pol(state: SkyModelState, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int,
-#                     control_params: np.ndarray):
-#     res: float = 0
-#     for t in range(state.tensor_components_pol):
-#         sun_val_t = eval_pp(gamma, gamma_segment, state.sun_breaks_pol,
-#                             control_params[state.sun_offset_pol + t * state.sun_stride_pol])
-#         zenith_val_t = eval_pp(alpha, alpha_segment, state.zenith_breaks_pol,
-#                                control_params[state.zenith_offset_pol + t * state.zenith_stride_pol])
-#         res += sun_val_t * zenith_val_t
-#
-#     return res
-#
-#
-# def interpolate_elevation_pol(state: SkyModelState, elevation: float, altitude: int, turbidity: int, albedo: int,
-#                               wavelength: int, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int):
-#     elevation_low: int = int(elevation)
-#     factor = elevation - float(elevation_low)
-#
-#     control_params_low = control_params_single_config(
-#         state, state.polarisation_dataset, state.total_coefs_single_config_pol,
-#         elevation_low, altitude, turbidity, albedo, wavelength
-#     )
-#     res_low = reconstruct_pol(state, gamma, alpha, gamma_segment, alpha_segment, control_params_low)
-#
-#     if factor < 1e-06 or elevation_low >= len(state.elevations) - 1:
-#         return res_low
-#
-#     control_params_high = control_params_single_config(
-#         state, state.polarisation_dataset, state.total_coefs_single_config_pol,
-#         elevation_low + 1, altitude, turbidity, albedo, wavelength
-#     )
-#     res_high = reconstruct_pol(state, gamma, alpha, gamma_segment, alpha_segment, control_params_high)
-#
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_altitude_pol(state: SkyModelState, elevation: float, altitude: float, turbidity: int, albedo: int,
-#                              wavelength: int, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int):
-#     altitude_low = int(altitude)
-#     factor = altitude - float(altitude_low)
-#
-#     res_low = interpolate_elevation_pol(
-#         state, elevation, altitude_low, turbidity, albedo, wavelength, gamma, alpha, gamma_segment, alpha_segment
-#     )
-#
-#     if factor < 1e-06 or altitude_low >= len(state.altitudes) - 1:
-#         return res_low
-#
-#     res_high = interpolate_elevation_pol(
-#         state, elevation, altitude_low + 1, turbidity, albedo, wavelength, gamma, alpha, gamma_segment, alpha_segment
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_turbidity_pol(state: SkyModelState, elevation: float, altitude: float, turbidity: float, albedo: int,
-#                               wavelength: int, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int):
-#
-#     # Ignore turbidity
-#     return interpolate_altitude_pol(
-#         state, elevation, altitude, int(turbidity), albedo, wavelength, gamma, alpha, gamma_segment, alpha_segment
-#     )
-#
-#
-# def interpolate_albedo_pol(state: SkyModelState, elevation: float, altitude: float, turbidity: float, albedo: float,
-#                            wavelength: int, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int):
-#     albedo_low = int(albedo)
-#     factor = albedo - float(albedo_low)
-#
-#     res_low = interpolate_turbidity_pol(
-#         state, elevation, altitude, turbidity, albedo_low, wavelength, gamma, alpha, gamma_segment, alpha_segment
-#     )
-#
-#     if factor < 1e-06 or albedo_low >= len(state.albedos) - 1:
-#         return res_low
-#
-#     res_high = interpolate_turbidity_pol(
-#         state, elevation, altitude, turbidity, albedo_low + 1, wavelength, gamma, alpha, gamma_segment, alpha_segment
-#     )
-#     return lerp(res_low, res_high, factor)
-#
-#
-# def interpolate_wavelength_pol(state: SkyModelState, elevation: float, altitude: float, turbidity: float, albedo: float,
-#                                wavelength: float, gamma: float, alpha: float, gamma_segment: int, alpha_segment: int):
-#
-#     # Don't interpolate, use the bin it belongs to
-#     return interpolate_albedo_pol(
-#         state, elevation, altitude, turbidity, albedo, int(wavelength), gamma, alpha, gamma_segment, alpha_segment
-#     )
-#
-#
-# def sky_model_polarisation(state, theta, gamma, shadow, zero, elevation, altitude, turbidity, albedo, wavelength):
-#     """
-#
-#     Parameters
-#     ----------
-#     state : SkyModelState
-#     theta : float
-#     gamma : float
-#     shadow : float
-#     zero : float
-#     elevation : float
-#     altitude : float
-#     turbidity : float
-#     albedo : float
-#     wavelength : float
-#
-#     Returns
-#     -------
-#     float
-#     """
-#
-#     # If no polarisation data available
-#     if state.tensor_components_pol == 0:
-#         return 0
-#
-#     # Translate parameter values to indices
-#
-#     turbidity_control = map_parameter(turbidity, state.turbidities)
-#     albedo_control = map_parameter(albedo, state.albedos)
-#     altitude_control = map_parameter(altitude, state.altitudes)
-#     elevation_control = map_parameter(elevation, state.elevations)
-#     channel_control = (wavelength - state.channel_start) / state.channel_width
-#
-#     if channel_control >= state.channels or channel_control < 0:
-#         return 0
-#
-#     gamma_segment = find_segment(gamma, state.sun_breaks_pol)
-#     theta_segment = find_segment(theta, state.zenith_breaks_pol)
-#
-#     return -interpolate_wavelength_pol(
-#         state, elevation_control, altitude_control, turbidity_control, albedo_control, channel_control,
-#         gamma, theta, gamma_segment, theta_segment
-#     )
-#
-#
-# def compute_pp_coefs(breaks, values, coefs, offset):
-#     """
-#
-#     Parameters
-#     ----------
-#     breaks : list[float]
-#     values : list[float]
-#     coefs : list[float]
-#     offset : int
-#
-#     Returns
-#     -------
-#     int
-#     """
-#     nb_breaks = len(breaks)
-#     for i in range(nb_breaks):
-#         coefs[offset + 2 * i] = (values[i+1] - values[i]) / (breaks[i+1] - breaks[i])
-#         coefs[offset + 2 * i + 1] = values[i]
-#
-#     return 2 * nb_breaks - 2
-
-
