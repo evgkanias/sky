@@ -5,11 +5,12 @@ language: python
 python:
   - "3.9"
 
+cache: pip
+
 install:
   - pip install -r requirements.txt
   - pip install .
 
 script:
   - cd test/
-  - ls
   - python prague_doctest.py
