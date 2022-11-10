@@ -452,7 +452,7 @@ class PragueSkyModel(object):
         ...     viewpoint=np.array([0, 0, 0]), view_direction=np.array([[0, 1, 0]]),
         ...     ground_level_solar_elevation_at_origin=np.pi/3, ground_level_solar_azimuth_at_origin= np.pi,
         ...     visibility=50, albedo=0.5)
-        Parameters(theta=array([1.57079633]), gamma=array([1.57079633]), shadow=array([1.56881652]), zero=array([1.56683671]), elevation=1.0471975511965976, altitude=50.0, visibility=50, albedo=0.5)
+        Parameters(theta=array([1.57079633]), gamma=array([1.57079633]), shadow=array([1.56881652]), zero=array([1.56683671]), elevation=1.0471975511965974, altitude=50.0, visibility=50, albedo=0.5)
 
         Parameters
         ----------
@@ -1574,13 +1574,13 @@ class PragueSkyModel(object):
         Examples
         --------
         >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 4)
-        InterpolationParameter(factor=array([0.0256]), index=array([0]))
+        InterpolationParameter(factor=array([0.0256]), index=array([0], dtype=int32))
         >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 3)
-        InterpolationParameter(factor=array([0.064]), index=array([0]))
+        InterpolationParameter(factor=array([0.064]), index=array([0], dtype=int32))
         >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.1), 2, 3)
-        InterpolationParameter(factor=array([0.008]), index=array([0]))
+        InterpolationParameter(factor=array([0.008]), index=array([0], dtype=int32))
         >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.5), 2, 3)
-        InterpolationParameter(factor=array([0.]), index=array([1]))
+        InterpolationParameter(factor=array([0.]), index=array([1], dtype=int32))
 
         Parameters
         ----------
