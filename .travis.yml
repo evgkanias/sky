@@ -12,5 +12,5 @@ install:
   - pip install .
 
 script:
-  - cd test/
+  - cd test
   - python prague_doctest.py

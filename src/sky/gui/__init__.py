@@ -20,7 +20,7 @@ class SkyModelGUI:
     def __init__(self):
 
         # load icon
-        icon_img: Image = Image.open(os.path.join("../..", "src", "data", "icon.png"))
+        icon_img: Image = Image.open(os.path.abspath(os.path.join("..", "data", "icon.png")))
         self.icon = io.BytesIO()
         icon_img.save(self.icon, format="PNG")
 
