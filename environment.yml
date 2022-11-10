@@ -1,0 +1,13 @@
+name: sky
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.9
+  - pip
+  - scipy>=1.9.3
+  - numpy>=1.23.4
+  - matplotlib>=3.6.2
+  - numba>=0.56.3
+  - pandas>=1.5.1
+  - pillow>=9.2.0
+  - pysimplegui>=4.60.4
