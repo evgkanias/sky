@@ -1,4 +1,4 @@
-from prague.prague import PragueSkyModel, AvailableData
+from sky.prague.prague import PragueSkyModel, AvailableData
 from sky.prague.render import render, image2texture, pixel2dir
 from sky.prague.render import SPECTRUM_CHANNELS, SPECTRUM_WAVELENGTHS, SPECTRUM_STEP, MODES
 

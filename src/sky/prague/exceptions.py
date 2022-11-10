@@ -1,3 +1,16 @@
+"""
+Package that contains useful exceptions and warnings.
+"""
+
+__author__ = "Evripidis Gkanias"
+__copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
+                "School of Informatics, the University of Edinburgh"
+__credits__ = ["Evripidis Gkanias", "Petr Vévoda", "Alexander Wilkie"]
+__license__ = "GPLv3+"
+__version__ = "v1.0-beta"
+__maintainer__ = "Evripidis Gkanias"
+
+
 class DatasetNotFoundWarning(Exception):
     """
     Exception thrown by the initialize method if the passed dataset file could not be found.

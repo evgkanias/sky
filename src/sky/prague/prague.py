@@ -5,9 +5,9 @@ Package that allows computations of the skylight properties by using the Vevoda 
 __author__ = "Evripidis Gkanias"
 __copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
                 "School of Informatics, the University of Edinburgh"
-__credits__ = ["Evripidis Gkanias"]
+__credits__ = ["Evripidis Gkanias", "Petr Vévoda", "Alexander Wilkie"]
 __license__ = "GPLv3+"
-__version__ = "v1.0.0-alpha"
+__version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
 from .io import *
@@ -153,6 +153,7 @@ class PragueSkyModel(object):
         Examples
         --------
         >>> import os
+        >>>
         >>> my_sky = PragueSkyModel()
         >>> print(my_sky.is_initialised)
         False
@@ -198,14 +199,7 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> import os
         >>> from sky.prague import Parameters
-        >>>
-        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        ...     import urllib.request
-        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
-        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
-        ...             fw.write(f.read())
         >>>
         >>> my_sky = PragueSkyModel()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
@@ -247,14 +241,7 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> import os
         >>> from sky.prague import Parameters
-        >>>
-        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        ...     import urllib.request
-        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
-        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
-        ...             fw.write(f.read())
         >>>
         >>> my_sky = PragueSkyModel()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
@@ -323,14 +310,7 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> import os
         >>> from sky.prague import Parameters
-        >>>
-        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        ...     import urllib.request
-        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
-        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
-        ...             fw.write(f.read())
         >>>
         >>> my_sky = PragueSkyModel()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
@@ -379,14 +359,7 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> import os
         >>> from sky.prague import Parameters
-        >>>
-        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        ...     import urllib.request
-        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
-        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
-        ...             fw.write(f.read())
         >>>
         >>> my_sky = PragueSkyModel()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')

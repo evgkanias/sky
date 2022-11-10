@@ -5,9 +5,9 @@ Package that contains all the dataclasses and static variables.
 __author__ = "Evripidis Gkanias"
 __copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
                 "School of Informatics, the University of Edinburgh"
-__credits__ = ["Evripidis Gkanias"]
+__credits__ = ["Evripidis Gkanias", "Petr Vévoda", "Alexander Wilkie"]
 __license__ = "GPLv3+"
-__version__ = "v1.0.0-alpha"
+__version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
 from dataclasses import dataclass
