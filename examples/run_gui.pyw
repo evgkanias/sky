@@ -1,4 +1,4 @@
-from skygui import SkyModelGUI
+from sky.gui import SkyModelGUI
 
 
 def main(*args):

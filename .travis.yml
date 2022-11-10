@@ -11,5 +11,4 @@ install:
 
 script:
   - cd test/
-  - mkdir data
   - python prague_doctest.py

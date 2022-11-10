@@ -1,4 +1,4 @@
-# Skylight Simulation ![GitHub top language](https://img.shields.io/github/languages/top/evgkanias/sky) [![GitHub license](https://img.shields.io/github/license/evgkanias/sky)](https://github.com/evgkanias/sky/blob/main/LICENSE) ![GitHub last-commit](https://img.shields.io/github/last-commit/evgkanias/sky) <a href="https://app.travis-ci.com/evgkanias/sky" target="_blank">![Build Status](https://app.travis-ci.com/evgkanias/sky.svg?branch=main)</a>
+# Skylight Simulation ![GitHub top language](https://img.shields.io/github/languages/top/evgkanias/sky) [![GitHub license](https://img.shields.io/github/license/evgkanias/sky)](https://github.com/evgkanias/sky/blob/main/LICENSE) ![GitHub last-commit](https://img.shields.io/github/last-commit/evgkanias/sky) ![Build Status](https://app.travis-ci.com/evgkanias/sky.svg?branch=main)
 
 Python simulations of the skylight information based on the
 [Vevoda et al. (2022)](https://cgg.mff.cuni.cz/publications/infrared-skymodel-2022/) Prague Sky Model.
