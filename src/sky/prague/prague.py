@@ -152,17 +152,15 @@ class PragueSkyModel(object):
 
         Examples
         --------
+        >>> import os
         >>> my_sky = PragueSkyModel()
-        >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
-        Traceback (most recent call last):
-          File "<input>", line 1, in <module>
-        TypeError: initialise() missing 1 required positional argument: 'filename'
         >>> print(my_sky.is_initialised)
         False
-        >>> import urllib.request
-        >>> with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
-        ...     with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
-        ...         fw.write(f.read())
+        >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
+        ...     import urllib.request
+        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
+        ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
+        ...             fw.write(f.read())
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')
         >>> print(my_sky.is_initialised)
         True
@@ -204,8 +202,8 @@ class PragueSkyModel(object):
         >>> from sky.prague import Parameters
         >>>
         >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        >>>     import urllib.request
-        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...     import urllib.request
+        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
         ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
         ...             fw.write(f.read())
         >>>
@@ -216,7 +214,7 @@ class PragueSkyModel(object):
         ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
         ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
         >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350)))
-        array([[0.09110355]])
+        [[0.09110355]]
 
         Parameters
         ----------
@@ -253,8 +251,8 @@ class PragueSkyModel(object):
         >>> from sky.prague import Parameters
         >>>
         >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        >>>     import urllib.request
-        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...     import urllib.request
+        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
         ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
         ...             fw.write(f.read())
         >>>
@@ -265,7 +263,7 @@ class PragueSkyModel(object):
         ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
         ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
         >>> print(my_sky.sun_radiance(parameters, wavelength=np.full(1, 350)))
-        array([[0.]])
+        [[0.]]
 
         Parameters
         ----------
@@ -329,8 +327,8 @@ class PragueSkyModel(object):
         >>> from sky.prague import Parameters
         >>>
         >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        >>>     import urllib.request
-        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...     import urllib.request
+        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
         ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
         ...             fw.write(f.read())
         >>>
@@ -340,8 +338,8 @@ class PragueSkyModel(object):
         >>> parameters = Parameters(
         ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
         ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
-        >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350)))
-        array([[0.13283859]])
+        >>> print(my_sky.polarisation(parameters, wavelength=np.full(1, 350)))
+        [[0.13283859]]
 
         Parameters
         ----------
@@ -385,8 +383,8 @@ class PragueSkyModel(object):
         >>> from sky.prague import Parameters
         >>>
         >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):
-        >>>     import urllib.request
-        >>>     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925') as f:
+        ...     import urllib.request
+        ...     with urllib.request.urlopen('https://drive.google.com/u/0/uc?id=1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl&export=download&confirm=t&uuid=feb46385-9cae-4e37-801d-d12a363bcbe0&at=ALAFpqxYftsd-qRDTKfAWGXOGNe1:1668004693925', timeout=100) as f:
         ...         with open('PragueSkyModelDatasetGroundInfra.dat', 'wb') as fw:
         ...             fw.write(f.read())
         >>>
@@ -396,7 +394,7 @@ class PragueSkyModel(object):
         >>> parameters = Parameters(
         ...     theta=np.full(1, np.pi/4), gamma=np.full(1, np.pi/4), shadow=np.full(1, np.pi/2),
         ...     zero=np.full(1, np.full(1, np.pi/4)), elevation=np.pi/4, altitude=0., visibility=50, albedo=0.5)
-        >>> print(my_sky.sky_radiance(parameters, wavelength=np.full(1, 350), distance=np.finfo(float).max))
+        >>> print(my_sky.transmittance(parameters, wavelength=np.full(1, 350), distance=np.finfo(float).max))
         0.2613840873796399
         >>> # this should be array([[0.26138409]])
 
@@ -1546,11 +1544,11 @@ class PragueSkyModel(object):
         >>> PragueSkyModel.get_interpolation_parameter(query_val=5.6, breaks=np.arange(2, 10))
         InterpolationParameter(factor=0.5999999999999996, index=3)
         >>> PragueSkyModel.get_interpolation_parameter(query_val=1.1, breaks=np.arange(2, 10))
-        InterpolationParameter(factor=array(0.), index=0)
+        InterpolationParameter(factor=0.0, index=0)
         >>> PragueSkyModel.get_interpolation_parameter(query_val=2.1, breaks=np.arange(2, 10))
-        InterpolationParameter(factor=array(0.10000000000000009), index=0)
+        InterpolationParameter(factor=0.10000000000000009, index=0)
         >>> PragueSkyModel.get_interpolation_parameter(query_val=8.1, breaks=np.arange(2, 10))
-        InterpolationParameter(factor=array(0.09999999999999964), index=0)
+        InterpolationParameter(factor=0.09999999999999964, index=6)
 
         Parameters
         ----------
@@ -1570,21 +1568,22 @@ class PragueSkyModel(object):
         clamped = np.float64(np.clip(query_val, breaks[0], breaks[-1]))
 
         # Get the nearest greater parameter value
-        next_greater = np.searchsorted(breaks, clamped, side='left') - 1
+        next_greater = np.searchsorted(breaks, clamped, side='right')
 
         # Compute the index and float factor
         factor = np.zeros(next_greater.shape, dtype='float64')
-        factor_valid = np.all([0 <= next_greater, next_greater < len(breaks) - 1], axis=0)
+        factor_valid = np.all([0 < next_greater, next_greater <= len(breaks) - 1], axis=0)
         if factor.size == 1 and factor_valid:
-            factor = (float(clamped - breaks[next_greater]) /
-                      float(breaks[next_greater + 1] - breaks[next_greater]))
+            factor = (float(clamped - breaks[next_greater - 1]) /
+                      float(breaks[next_greater] - breaks[next_greater - 1]))
         else:
-            factor[factor_valid] = (np.float64(clamped[factor_valid] - breaks[next_greater[factor_valid]]) /
-                                    np.float64(breaks[next_greater[factor_valid] + 1] -
-                                               breaks[next_greater[factor_valid]]))
+            factor[factor_valid] = (np.float64(clamped[factor_valid] - breaks[next_greater[factor_valid] - 1]) /
+                                    np.float64(breaks[next_greater[factor_valid]] -
+                                               breaks[next_greater[factor_valid] - 1]))
 
-        assert np.all([0 <= next_greater, next_greater < len(breaks),
-                       np.any([next_greater < len(breaks) - 1, factor == 0], axis=0)])
+        index = next_greater - 1
+        assert np.all([0 <= index, index < len(breaks),
+                       np.any([index < len(breaks) - 1, factor == 0], axis=0)])
         assert np.all([0 <= factor, factor <= 1]), (
             f"Factor must be in range [0, 1]. "
             f"Out of the {len(factor)} factors, there were "
@@ -1592,7 +1591,7 @@ class PragueSkyModel(object):
             f"{np.sum(np.any([factor > 1], axis=0))} factors > 1."
         )
 
-        return InterpolationParameter(factor=factor, index=next_greater)
+        return InterpolationParameter(factor=factor, index=index)
 
     @staticmethod
     def get_interpolation_parameter_trans(value, param_count, power):
