@@ -3,7 +3,7 @@
 ![vevoda_2022_teaser](docs/vevoda_2022_infrared_sky_teaser.png)
 
 Python simulations of the skylight information based on the
-[Vevoda et al. (2022)](https://cgg.mff.cuni.cz/publications/infrared-skymodel-2022/) Prague Sky Model.
+[Vévoda et al. (2022)](https://cgg.mff.cuni.cz/publications/infrared-skymodel-2022/) Prague Sky Model.
 This contains a Python implementation of the Prague Sky Model 2022 including a copy of their GUI (original C++ code
 [here](https://cgg.mff.cuni.cz/wp-content/uploads/2022/09/vevoda_2022_infrared_sky_implementation.zip)).
 There are three available datasets that work with this model, which can be downloaded form here:
