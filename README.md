@@ -88,6 +88,10 @@ If you have any issues installing or using the package, you can report it
 
 The code is written by [Evripidis Gkanias](https://evgkanias.github.io/).
 
+## Credits
+
+The original (C++) code for this model was written by [Petr Vévoda](https://cgg.mff.cuni.cz/members/vevoda/) et al. from [Alexander Wilkie's](https://cgg.mff.cuni.cz/members/wilkie/) group in Charles University, which was part of their  [wide spectral range sky radiance model](https://cgg.mff.cuni.cz/publications/infrared-skymodel-2022/).
+
 ## Copyright
 
 Copyright &copy; 2022, Evripidis Gkanias; Institute of Perception,
