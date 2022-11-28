@@ -14,8 +14,6 @@ There are three available datasets that work with this model, which can be downl
 * [Google Drive with the hemispherical model](https://drive.google.com/drive/folders/1R9dTbOhBXthY3y9BTI4H28acl9dJLIaV?usp=sharing)
   (omits polarisation data and different altitudes)
 
-The SWIR dataset can also be found in the [data](data) directiory of this repository.
-
 ## Installation
 
 In order to install the package and reproduce the results of the manuscript you need to clone
