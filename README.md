@@ -49,33 +49,10 @@ cd sky
    
 Note that the [pip](https://pypi.org/project/pip/) project might be needed for the above installation.
 
-## Run the graphical user interface (GUI)
+## Graphical User Interface (GUI)
 
-To run the GUI, go to the examples directory and run the script that open the graphical environment.
-
-```commandline
-cd examples
-python run_gui.pyw
-```
-
-This will open the GUI which should look like this:
-
-![Initial GUI](docs/gui-0.png)
-
-By clicking the file-name filed, you can choose the dataset file, which will load automatically.
-Once loaded, you can click "Render" (or choose the auto-update option) and this will print an image
-of the sky radiance, sun radiance, degree of polarisation, or transmittance (depending on the
-rendering mode), as shown below:
-
-![Rendered GUI](docs/gui-1.png)
-
-By clicking the saving file-name, you can define the file-name and type of data you want to save. Theses
-are:
-* Image file (PNG or JPEG)
-* Raw data (CSV or EXCEL)
-
-The raw data option will save the data of the chosen mode but for all the available wavelengths and the
-extracted visible light (RGB).
+If you prefer to use a graphical user interface for this package, please refer to
+[sky-gui](https://github.com/evgkanias/sky-gui).
 
 ## Report an issue
 
