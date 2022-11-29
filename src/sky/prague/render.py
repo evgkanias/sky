@@ -361,11 +361,10 @@ def spectrum2rgb(spectrum):
 
 def image2texture(image: np.ndarray, exposure: float):
     texture = np.zeros((image.shape[0], image.shape[1], 4), dtype='uint8')
-    exp_mult = np.float32(np.power(2, exposure))
     img_tran = image < 0
     img_copy = image.copy()
     img_copy[img_tran] = 0.
-    no_gamma = np.clip(np.power(img_copy * exp_mult, 1.0 / 2.2) * 255., 0, 255)
+    no_gamma = apply_exposure(img_copy, exposure) * 255.
     if no_gamma.ndim < 3:
         no_gamma = no_gamma[..., None]
     if img_tran.ndim > 2:
@@ -374,6 +373,12 @@ def image2texture(image: np.ndarray, exposure: float):
     texture[:, :, :3] = np.uint8(np.floor(no_gamma))
     texture[~img_tran, 3] = 255
     return texture
+
+
+def apply_exposure(value: np.ndarray, exposure: float):
+    exp_mult = np.float32(np.power(2, exposure))
+    return np.clip(np.power(value * exp_mult, 1.0 / 2.2), 0, 1)
+
 
 
 # @vectorize(['np.ndarray[3, float](float32,float32,float32)'])

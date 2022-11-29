@@ -11,13 +11,17 @@ __license__ = "GPLv3+"
 __version__ = "v1.0.0-alpha"
 __maintainer__ = "Evripidis Gkanias"
 
-from .__helpers import __root__, eps, RNG, add_noise
+from .__helpers import __root__, eps
 
+from . import prague
 from .observer import Observer, get_seville_observer
 from .ephemeris import Sun
 
+import sky.geometry as geo
+
 from scipy.spatial.transform import Rotation as R
 from datetime import datetime
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -29,27 +33,35 @@ T_L = np.array([[ 0.1787, -1.4630],
 """Transformation matrix of turbidity to luminance coefficients"""
 
 
-class UniformSky(object):
-    def __init__(self, luminance=1., name="uniform-sky"):
-        self.__luminance = luminance
+@dataclass
+class SkyInstance:
 
-        self.__y = np.full(1, np.nan)
-        self.__aop = np.full(1, np.nan)
-        self.__dop = np.full(1, np.nan)
-        self.__eta = np.full(1, False)
-        self.__theta = np.full(1, np.nan)
-        self.__phi = np.full(1, np.nan)
+    sun_direction: np.ndarray
+    view_direction: np.ndarray
+    sky_radiance: np.ndarray
+    degree_of_polarisation: np.ndarray
+    angle_of_polarisation: np.ndarray
+    albedo: np.ndarray
+    wavelengths: np.ndarray
+
+
+class SkyBase(object):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="sky"):
+        self.__max_radiance = 1.
+        theta_s = np.deg2rad(theta_s) if degrees else theta_s
+        self.__theta_s = theta_s
+        self.__phi_s = np.deg2rad(phi_s) if degrees else phi_s
 
         self._is_generated = False
         self.__name = name
 
-    def __call__(self, ori=None, irgbu=None, noise=0., eta=None, rng=RNG):
+    def __call__(self, ori, wavelengths=None, albedo=None):
         """
         Generates the skylight properties for the given orientations and spectral influences.
 
         Parameters
         ----------
-        ori: R, optional
+        ori: R, np.ndarray[float], optional
             orientation of the interesting elements. Default is None
         irgbu: np.ndarray[float], optional
             the spectral influence of the observer
@@ -62,184 +74,86 @@ class UniformSky(object):
 
         Returns
         -------
-        Y: np.ndarray[float]
-            the luminance
-        P: np.ndarray[float]
-            the degree of polarisation
-        A: np.ndarray[float]
-            the angle of polarisation
+        SkyInstance
+            the luminance, degree and angle of polarisation
         """
 
+        if wavelengths is None:
+            wavelengths = np.array([prague.SPECTRAL_RESPONSE_START + 240])
+
         # set default arguments
-        self._update_coordinates(ori)
+        xyz = geo.get_coordinates(ori)
 
         # calculate light properties
-        y = np.full_like(self.__phi, self.__luminance)  # Illumination
-        p = np.full_like(self.__phi, 0.)  # Illumination
-        a = np.full_like(self.__phi, np.nan)  # Illumination
+        y = np.full(xyz.shape[0], self.__max_radiance * np.power(np.sin(self.theta_s), 4))  # radiance
+        p = np.full(xyz.shape[0], 0.2)  # degree of polarisation
+        a = self.compute_angle_of_polarisation(ori, self.phi_s, self.theta_s)
 
         # create cloud disturbance
-        if eta is None:
-            eta = add_noise(noise=noise, shape=y.shape, rng=rng)
-        y[eta] = 0.
+        if albedo is None:
+            albedo = np.ones_like(y)
+        y *= albedo
 
-        self.__y = y
-        self.__dop = p
-        self.__aop = a
-        self.__eta = eta
+        # if wavelengths is not None:
+        #     y = spectrum_influence(y, wavelengths).sum(axis=1)
 
         self._is_generated = True
 
-        if irgbu is not None:
-            y = spectrum_influence(y, irgbu).sum(axis=1)
+        sun_xyz = geo.sph2xyz(self.theta_s, self.phi_s)
 
-        return y, p, a
-
-    def _update_coordinates(self, ori=None):
-        if ori is not None:
-            xyz = np.clip(ori.apply([-1, 0, 0]), -1, 1)
-            phi = np.arctan2(xyz[..., 1], xyz[..., 0])
-            theta = np.arccos(xyz[..., 2])
-            # theta[xyz[..., 2] > 0] = np.pi - theta[xyz[..., 2] > 0]
-            phi = (phi + np.pi) % (2 * np.pi) - np.pi
-
-            # save points of interest
-            self.theta = theta.copy()
-            self.phi = phi.copy()
-        else:
-            ori = R.from_euler('ZY', np.vstack([self.phi, self.theta]).T, degrees=False)
-
-        return ori
+        return SkyInstance(
+            sun_direction=sun_xyz,
+            view_direction=xyz,
+            sky_radiance=y,
+            degree_of_polarisation=p,
+            angle_of_polarisation=a,
+            albedo=albedo,
+            wavelengths=wavelengths
+        )
 
     @property
-    def Y(self):
-        """
-        The luminance of the sky (K cd/m^2)
+    def max_radiance(self):
+        return self.__max_radiance
 
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate the env, use the call function."
-        return self.__y
+    @max_radiance.setter
+    def max_radiance(self, value):
+        self.__max_radiance = value
 
     @property
-    def DOP(self):
-        """
-        The linear degree of polarisation in the sky
+    def theta_s(self):
+        return self.__theta_s
 
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate the env, use the call function."
-        return self.__dop
-
-    @property
-    def AOP(self):
-        """
-        The angle of linear polarisation in the sky
-
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate the env, use the call function."
-        return self.__aop
-
-    @property
-    def theta(self):
-        """
-        The elevation of the last used elements.
-
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate sky env, use the call function."
-        return self.__theta
-
-    @theta.setter
-    def theta(self, value):
-        self.__theta = value
+    @theta_s.setter
+    def theta_s(self, value):
+        self.__theta_s = value
         self._is_generated = False
 
     @property
-    def phi(self):
-        """
-        The azimuth of the last used elements.
+    def phi_s(self):
+        return self.__phi_s
 
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate the sky, use the call function."
-        return self.__phi
-
-    @phi.setter
-    def phi(self, value):
-        self.__phi = value
+    @phi_s.setter
+    def phi_s(self, value):
+        self.__phi_s = value
         self._is_generated = False
 
-    @property
-    def eta(self):
-        """
-        The percentage of noise induced in each element.
+    @staticmethod
+    def compute_angle_of_polarisation(ori, phi_s, theta_s):
+        v_s = geo.sph2xyz(theta_s, phi_s)
+        v_p = geo.ori2xyz(ori)
+        c = np.cross(v_s, v_p)
 
-        Returns
-        -------
-        np.ndarray[float]
-        """
-        assert self._is_generated, "Sky is not generated yet. In order to generate the sky, use the call function."
-        return self.__eta
-
-    @eta.setter
-    def eta(self, value):
-        self.__eta = value
-        self._is_generated = False
-
-    @property
-    def _y(self):
-        return self.__y
-
-    @_y.setter
-    def _y(self, value):
-        self.__y = value
-
-    @property
-    def _dop(self):
-        return self.__dop
-
-    @_dop.setter
-    def _dop(self, value):
-        self.__dop = value
-
-    @property
-    def _aop(self):
-        return self.__aop
-
-    @_aop.setter
-    def _aop(self, value):
-        self.__aop = value
-
-    @property
-    def _theta(self):
-        return self.__theta
-
-    @_theta.setter
-    def _theta(self, value):
-        self.__theta = value
-
-    @property
-    def _phi(self):
-        return self.__phi
-
-    @_phi.setter
-    def _phi(self, value):
-        self.__phi = value
+        a = np.arctan2(c[:, 1], c[:, 0])
+        return (a + np.pi / 2) % np.pi - np.pi / 2
 
 
-class Sky(UniformSky):
+class UniformSky(SkyBase):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, radiance=1., name="uniform-sky"):
+        super(UniformSky, self).__init__(theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
+        self.max_radiance = radiance
+
+
+class AnalyticalSky(SkyBase):
 
     def __init__(self, theta_s=0., phi_s=0., degrees=False, name="sky"):
         """
@@ -256,95 +170,84 @@ class Sky(UniformSky):
         name: str, optional
             a name for the sky instance. Default is 'sky'
         """
-        super(Sky, self).__init__(name=name)
+        SkyBase.__init__(self, theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
         self.__a, self.__b, self.__c, self.__d, self.__e = 0., 0., 0., 0., 0.
         self.__tau_L = 2.
         self._update_luminance_coefficients(self.__tau_L)
         self.__c1 = .6
         self.__c2 = 4.
-        self.theta_s = np.deg2rad(theta_s) if degrees else theta_s
-        self.theta_s = np.pi/2 - theta_s
-        self.phi_s = np.deg2rad(phi_s) if degrees else phi_s
 
-    def __call__(self, ori=None, irgbu=None, noise=0., eta=None, rng=RNG):
+    def __call__(self, ori, wavelengths=None, albedo=None):
         """
         Generates the skylight properties for the given orientations and spectral influences.
 
         Parameters
         ----------
-        ori: R, optional
+        ori: R
             orientation of the interesting elements. Default is None
-        irgbu: np.ndarray[float], optional
+        wavelengths: np.ndarray[float], optional
             the spectral influence of the observer
-        noise: float, optional
-            the noise level (sigma)
-        eta: np.ndarray[float], optional
+        albedo: np.ndarray[float], optional
             :param eta: array of noise level in each point of interest
-        rng
-            the random generator
 
         Returns
         -------
-        Y: np.ndarray[float]
-            the luminance
-        P: np.ndarray[float]
-            the degree of polarisation
-        A: np.ndarray[float]
-            the angle of polarisation
+        SkyInstance
+            the luminance, degree and angle of polarisation
         """
 
         # set default arguments
-        ori = self._update_coordinates(ori)
-        theta = self._theta
-        phi = self._phi
+        xyz = geo.get_coordinates(ori)
+        theta = geo.xyz2elevation(xyz)
+        # phi = geo.xyz2azimuth(xyz)
 
-        theta_s, phi_s = self.theta_s, self.phi_s
+        sun_xyz = geo.sph2xyz(self.theta_s, self.phi_s)
 
         # SKY INTEGRATION
 
         # distance of the element from the sun position
-        gamma = np.arccos(np.sin(theta) * np.sin(theta_s) +
-                          np.cos(theta) * np.cos(theta_s) * np.cos(phi - phi_s))
+        gamma = geo.angle_between(xyz, sun_xyz)
 
         # Intensity
-        i_prez = self.L(gamma, theta)
-        i_00 = self.L(0., np.pi/2 - theta_s)  # the luminance (Cd/m^2) at the zenith point
-        i_90 = self.L(np.pi / 2, np.absolute(theta_s))  # the luminance (Cd/m^2) on the horizon
+        i_prez = self.L(gamma, np.pi/2 - theta)
+        i_00 = self.L(0., np.pi/2 - self.theta_s)  # the luminance (Cd/m^2) at the zenith point
+        i_90 = self.L(np.pi / 2, np.absolute(self.theta_s))  # the luminance (Cd/m^2) on the horizon
         # influence of env intensity
         i = (1. / (i_prez + eps) - 1. / (i_00 + eps)) * i_00 * i_90 / (i_00 - i_90 + eps)
-        y = np.maximum(self.Y_z * i_prez / (i_00 + eps), 0.)  # Illumination
+        y = np.maximum(self.Y_z * i_prez / (i_00 + eps), 0.) / 25  # Illumination
 
         # Degree of Polarisation
         lp = np.square(np.sin(gamma)) / (1 + np.square(np.cos(gamma)))
-        p = np.clip(2. / np.pi * self.M_p * lp * (theta * np.cos(theta) + (np.pi / 2 - theta) * i), 0., 1.)
+        # p = np.clip(2. / np.pi * self.M_p * lp * (theta * np.cos(theta) + (np.pi / 2 - theta) * i), 0., 1.)
+        p = np.clip(2. / np.pi * self.M_p * lp * ((np.pi / 2 - theta) * np.sin(theta) + theta * i), 0., 1.)
+        p = 0.7 * np.sqrt(p)
 
         # Angle of polarisation
-        ori_s = R.from_euler('ZY', [phi_s, theta_s], degrees=False)
-        x_s, y_s, _ = ori_s.apply([1, 0, 0]).T
-        x_p, y_p, _ = ori.apply([1, 0, 0]).T
-        a_x = np.arctan2(y_p - y_s, x_p - x_s) + np.pi/2
-        a = (a_x + np.pi) % (2 * np.pi) - np.pi
+        a = self.compute_angle_of_polarisation(ori, self.phi_s, self.theta_s)
 
         # create cloud disturbance
-        if eta is None:
-            eta = add_noise(noise=noise, shape=y.shape, rng=rng)
-        y[eta] = 0.
-        p[eta] = 0.  # destroy the polarisation pattern
-        a[eta] = np.nan
+        if albedo is None:
+            albedo = np.ones_like(y)
+        y *= albedo
+        p *= albedo  # destroy the polarisation pattern
+        a[np.isclose(albedo, 0)] = np.nan
 
-        y[gamma < np.pi/60] = 17
-
-        self._y = y
-        self._dop = p
-        self._aop = a
-        self._eta = eta
+        y[gamma < np.pi/180] = 100
 
         self._is_generated = True
 
-        if irgbu is not None:
-            y = spectrum_influence(y, irgbu).sum(axis=1)
+        if wavelengths is not None:
+            y = spectrum_influence(y, wavelengths).sum(axis=1)
 
-        return y, p, a
+        return SkyInstance(
+            sun_direction=sun_xyz,
+            view_direction=xyz,
+            sky_radiance=y,
+            degree_of_polarisation=p,
+            angle_of_polarisation=a,
+            wavelengths=wavelengths,
+            albedo=albedo
+        )
 
     def L(self, chi, z):
         """
@@ -560,21 +463,14 @@ class Sky(UniformSky):
 
         Returns
         -------
-        Sky
+        AnalyticalSky
         """
-        sky = Sky()
+        sky = AnalyticalSky()
         sky.tau_L = self.tau_L
         sky.theta_s = self.theta_s
         sky.phi_s = self.phi_s
         sky.__c1 = self.__c1
         sky.__c2 = self.__c2
-
-        sky.__theta = self.__theta
-        sky.__phi = self.__phi
-        sky.__aop = self.__aop
-        sky.__dop = self.__dop
-        sky.__y = self.__y
-        sky.__eta = self.__eta
 
         sky._is_generated = False
         return sky
@@ -595,7 +491,7 @@ class Sky(UniformSky):
 
         Returns
         -------
-        Sky
+        AnalyticalSky
         """
 
         sun = Sun()
@@ -609,7 +505,7 @@ class Sky(UniformSky):
             yaw = 0.
         theta_s, phi_s = np.pi/2 - sun.alt, (sun.az - yaw + np.pi) % (2 * np.pi) - np.pi
 
-        return Sky(theta_s=theta_s, phi_s=phi_s)
+        return AnalyticalSky(theta_s=theta_s, phi_s=phi_s)
 
     @staticmethod
     def from_type(sky_type):
@@ -639,7 +535,7 @@ class Sky(UniformSky):
 
         Returns
         -------
-        Sky
+        AnalyticalSky
         """
         import os
         import yaml
@@ -659,7 +555,7 @@ class Sky(UniformSky):
         d = sp['indicatrix'][rep['indicatrix']]['d']
         e = sp['indicatrix'][rep['indicatrix']]['e']
 
-        s = Sky()
+        s = AnalyticalSky()
         s._update_turbidity(a, b, c, d, e)
         # s.__tau_L = 2.
 
@@ -667,6 +563,54 @@ class Sky(UniformSky):
             print(description)
 
         return s
+
+
+class PragueSky(SkyBase):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="prague-sky"):
+        SkyBase.__init__(self, theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
+        self.__model = prague.PragueSkyModel()
+
+    def initialise(self, filename, single_visibility=0.0):
+        self.__model.initialise(filename, single_visibility)
+
+    def __call__(self, ori, wavelengths=None, albedo=None, altitude=None, visibility=None):
+        assert self.is_initialised
+
+        if wavelengths is None:
+            wavelengths = np.array([prague.SPECTRAL_RESPONSE_START + 240])
+        if albedo is None:
+            albedo = 0.5
+        if altitude is None:
+            altitude = 1.0
+        if visibility is None:
+            visibility = 50.0
+
+        # We are viewing the sky from 'altitude' meters above the origin
+        viewpoint = np.array([0, 0, altitude], dtype='float64')
+        views_arr = geo.get_coordinates(ori)
+
+        # Get internal model parameters for the desired confirmation.
+        params = self.__model.compute_parameters(viewpoint, views_arr, self.theta_s, self.phi_s, visibility, albedo)
+
+        y = self.__model.sky_radiance(params, wavelengths) + self.__model.sun_radiance(params, wavelengths)
+        p = np.abs(self.__model.polarisation(params, wavelengths))
+        a = AnalyticalSky.compute_angle_of_polarisation(ori, phi_s=self.phi_s, theta_s=self.theta_s)
+
+        sun_xyz = geo.sph2xyz(self.theta_s, self.phi_s)
+
+        return SkyInstance(
+            sun_direction=sun_xyz,
+            view_direction=views_arr,
+            sky_radiance=y,
+            degree_of_polarisation=p,
+            angle_of_polarisation=a,
+            albedo=albedo,
+            wavelengths=wavelengths
+        )
+
+    @property
+    def is_initialised(self):
+        return self.__model.is_initialised
 
 
 def spectrum_influence(v, irgbu):

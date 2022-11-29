@@ -14,8 +14,12 @@ from .io import *
 from .skytypes import *
 from .exceptions import *
 
+import sky.geometry as geo
+
 import numpy as np
 import warnings
+
+eps = np.finfo(float).eps
 
 
 class PragueSkyModel(object):
@@ -464,9 +468,9 @@ class PragueSkyModel(object):
             ground level solar elevation at origin (in rad)
         ground_level_solar_azimuth_at_origin : float
             ground level solar azimuth at origin (in rad)
-        visibility : float
+        visibility : float, np.ndarray[float]
             ground level visibility in kilometers
-        albedo : float
+        albedo : float, np.ndarray[float]
             ground level albedo
 
         Returns
@@ -477,8 +481,8 @@ class PragueSkyModel(object):
 
         assert viewpoint[2] >= 0
         assert np.all(np.linalg.norm(view_direction, axis=-1) > 0)
-        assert visibility >= 0
-        assert 0 <= albedo <= 1
+        assert np.all(visibility >= 0)
+        assert np.all([0 <= albedo, albedo <= 1])
 
         # Shift viewpoint about safety altitude up
         centre_of_earth = np.array([0, 0, -PLANET_RADIUS], dtype='float64')
@@ -489,23 +493,17 @@ class PragueSkyModel(object):
         to_shifted_viewpoint = to_viewpoint_n * distance_to_view
         shifted_viewpoint = centre_of_earth + to_shifted_viewpoint
 
-        view_direction_n = (
-                view_direction.T / np.maximum(np.linalg.norm(view_direction, axis=-1), np.finfo(float).eps)).T
+        view_direction_n = (view_direction.T / np.maximum(np.linalg.norm(view_direction, axis=-1), eps)).T
 
         # Compute altitude of viewpoint
         altitude = np.maximum(distance_to_view - PLANET_RADIUS, 0)
 
         # Direction to sun
-        direction_to_sun_n = np.array([
-            np.cos(ground_level_solar_azimuth_at_origin) * np.cos(ground_level_solar_elevation_at_origin),
-            np.sin(ground_level_solar_azimuth_at_origin) * np.cos(ground_level_solar_elevation_at_origin),
-            np.sin(ground_level_solar_elevation_at_origin)
-        ], dtype='float64')
+        direction_to_sun_n = geo.sph2xyz(ground_level_solar_elevation_at_origin, ground_level_solar_azimuth_at_origin)
 
         # Solar elevation at viewpoint
         # (more precisely, solar elevation at the point on the ground directly below viewpoint)
-        dot_zenith_sun = np.dot(to_viewpoint_n, direction_to_sun_n)
-        elevation = 0.5 * np.pi - np.arccos(dot_zenith_sun)
+        elevation = 0.5 * np.pi - geo.angle_between(to_viewpoint_n, direction_to_sun_n)
 
         # Altitude-corrected view direction
         if distance_to_view > PLANET_RADIUS:
@@ -522,29 +520,21 @@ class PragueSkyModel(object):
             correct_view_n = view_direction_n
 
         # Sun angle (gamma) - no correction
-        dot_product_sun = np.dot(view_direction_n, direction_to_sun_n)
-        gamma = np.arccos(dot_product_sun)  # rad
+        gamma = geo.angle_between(view_direction_n, direction_to_sun_n)
 
         # Shadow angle - requires correction
         effective_elevation = ground_level_solar_elevation_at_origin  # rad
         effective_azimuth = ground_level_solar_azimuth_at_origin  # rad
         shadow_angle = effective_elevation + np.pi * 0.5  # rad
 
-        shadow_direction_n = np.array([
-            np.cos(shadow_angle) * np.cos(effective_azimuth),
-            np.cos(shadow_angle) * np.sin(effective_azimuth),
-            np.sin(shadow_angle)
-        ], dtype='float64')
-        dot_product_shadow = np.dot(correct_view_n, shadow_direction_n)
-        shadow = np.arccos(dot_product_shadow)  # rad
+        shadow_direction_n = geo.sph2xyz(shadow_angle, effective_azimuth)
+        shadow = geo.angle_between(correct_view_n, shadow_direction_n)
 
         # Zenith angle (theta) - corrected version stored in otherwise unused zero angle
-        cos_theta_cor = np.dot(correct_view_n, to_viewpoint_n)
-        zero = np.arccos(cos_theta_cor)  # rad
+        zero = geo.angle_between(correct_view_n, to_viewpoint_n)
 
         # Zenith angle (theta) - uncorrected version goes outside
-        cos_theta = np.dot(view_direction_n, to_viewpoint_n)
-        theta = np.arccos(cos_theta)  # rad
+        theta = geo.angle_between(view_direction_n, to_viewpoint_n)
 
         return Parameters(
             theta=theta, gamma=gamma, shadow=shadow, zero=zero, elevation=elevation, altitude=altitude,
@@ -1802,8 +1792,8 @@ def intersect_ray_with_circle_2d(ray_dir_x, ray_dir_y, ray_pos_y, circle_radius)
     discrim[~touch] = np.sqrt(discrim[~touch])
 
     # Compute distances to both intersections
-    d1 = (-qb + discrim) / np.maximum(2.0 * qa, np.finfo(float).eps)
-    d2 = (-qb - discrim) / np.maximum(2.0 * qa, np.finfo(float).eps)
+    d1 = (-qb + discrim) / np.maximum(2.0 * qa, eps)
+    d2 = (-qb - discrim) / np.maximum(2.0 * qa, eps)
 
     # Try to take the nearest positive one
     both_positive = np.all([d1 > 0, d2 > 0], axis=0)
