@@ -27,7 +27,11 @@ def visualise(si, title="light-properties"):
     plt.figure(title, figsize=(13.5, 4.5))
 
     y = apply_exposure(si.sky_radiance, exposure=2)
+    if y.ndim > 1:
+        y = np.nanmean(y, axis=0)
     p = si.degree_of_polarisation
+    if p.ndim > 1:
+        p = np.nanmean(p, axis=0)
     a = si.angle_of_polarisation
 
     elevation = geo.xyz2elevation(si.view_direction)
@@ -104,6 +108,7 @@ if __name__ == "__main__":
     sky = PragueSky(sun_theta, sun_phi)
     sky.initialise(os.path.join("..", "data", "PragueSkyModelDatasetGroundInfra.dat"))
     si = sky(ori)
+    # si = sky(ori, wavelengths=np.array([300, 500, 700]))
 
     visualise(si, title="Prague Sky")
 

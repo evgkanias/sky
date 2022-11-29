@@ -10,7 +10,7 @@ __license__ = "GPLv3+"
 __version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
-from .prague import PragueSkyModel
+from .prague import PragueSkyModelManager
 
 from numba import vectorize
 
@@ -146,7 +146,7 @@ def render(sky_model, albedo, altitude, azimuth, elevation, visibility, resoluti
 
     Parameters
     ----------
-    sky_model : PragueSkyModel
+    sky_model : PragueSkyModelManager
         Reference to the sky model object.
     albedo : float
         Ground albedo, value in range [0, 1].

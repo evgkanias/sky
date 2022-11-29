@@ -117,7 +117,9 @@ class SkyBase(object):
 
     @max_radiance.setter
     def max_radiance(self, value):
-        self.__max_radiance = value
+        self._is_generated = value == self.__max_radiance and self._is_generated
+        if not self.is_generated:
+            self.__max_radiance = value
 
     @property
     def theta_s(self):
@@ -125,8 +127,9 @@ class SkyBase(object):
 
     @theta_s.setter
     def theta_s(self, value):
-        self.__theta_s = value
-        self._is_generated = False
+        self._is_generated = self.__theta_s == value and self._is_generated
+        if not self.is_generated:
+            self.__theta_s = value
 
     @property
     def phi_s(self):
@@ -134,8 +137,13 @@ class SkyBase(object):
 
     @phi_s.setter
     def phi_s(self, value):
-        self.__phi_s = value
-        self._is_generated = False
+        self._is_generated = self.__phi_s == value and self._is_generated
+        if not self.is_generated:
+            self.__phi_s = value
+
+    @property
+    def is_generated(self):
+        return self._is_generated
 
     @staticmethod
     def compute_angle_of_polarisation(ori, phi_s, theta_s):
@@ -290,9 +298,10 @@ class AnalyticalSky(SkyBase):
 
     @A.setter
     def A(self, value):
-        self.__a = value
-        self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
-        self._is_generated = False
+        self._is_generated = self.__a == value and self._is_generated
+        if not self.is_generated:
+            self.__a = value
+            self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
 
     @property
     def B(self):
@@ -307,9 +316,10 @@ class AnalyticalSky(SkyBase):
 
     @B.setter
     def B(self, value):
-        self.__b = value
-        self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
-        self._is_generated = False
+        self._is_generated = self.__a == value and self._is_generated
+        if not self.is_generated:
+            self.__b = value
+            self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
 
     @property
     def C(self):
@@ -324,9 +334,10 @@ class AnalyticalSky(SkyBase):
 
     @C.setter
     def C(self, value):
-        self.__c = value
-        self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
-        self._is_generated = False
+        self._is_generated = self.__a == value and self._is_generated
+        if not self.is_generated:
+            self.__c = value
+            self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
 
     @property
     def D(self):
@@ -341,9 +352,10 @@ class AnalyticalSky(SkyBase):
 
     @D.setter
     def D(self, value):
-        self.__d = value
-        self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
-        self._is_generated = False
+        self._is_generated = self.__a == value and self._is_generated
+        if not self.is_generated:
+            self.__d = value
+            self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
 
     @property
     def E(self):
@@ -358,9 +370,10 @@ class AnalyticalSky(SkyBase):
 
     @E.setter
     def E(self, value):
-        self.__e = value
-        self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
-        self._is_generated = False
+        self._is_generated = self.__a == value and self._is_generated
+        if not self.is_generated:
+            self.__e = value
+            self._update_turbidity(self.A, self.B, self.C, self.D, self.E)
 
     @property
     def c1(self):
@@ -399,7 +412,8 @@ class AnalyticalSky(SkyBase):
     def tau_L(self, value):
         assert value >= 1., "Turbidity must be greater or eaqual to 1."
         self._is_generated = self.__tau_L == value and self._is_generated
-        self._update_luminance_coefficients(value)
+        if not self.is_generated:
+            self._update_luminance_coefficients(value)
 
     @property
     def Y_z(self):
@@ -568,7 +582,7 @@ class AnalyticalSky(SkyBase):
 class PragueSky(SkyBase):
     def __init__(self, theta_s=0., phi_s=0., degrees=False, name="prague-sky"):
         SkyBase.__init__(self, theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
-        self.__model = prague.PragueSkyModel()
+        self.__model = prague.PragueSkyModelManager()
 
     def initialise(self, filename, single_visibility=0.0):
         self.__model.initialise(filename, single_visibility)
@@ -597,6 +611,8 @@ class PragueSky(SkyBase):
         a = AnalyticalSky.compute_angle_of_polarisation(ori, phi_s=self.phi_s, theta_s=self.theta_s)
 
         sun_xyz = geo.sph2xyz(self.theta_s, self.phi_s)
+
+        self._is_generated = True
 
         return SkyInstance(
             sun_direction=sun_xyz,

@@ -22,7 +22,7 @@ import warnings
 eps = np.finfo(float).eps
 
 
-class PragueSkyModel(object):
+class PragueSkyModelManager(object):
     def __init__(self):
         """
         Implementation of the physically-based sky model presented by [1]_ and [2]_. Improves on previous work
@@ -46,7 +46,7 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> my_sky = PragueSkyModel()
+        >>> my_sky = PragueSkyModelManager()
         >>> print(my_sky.is_initialised)
         False
 
@@ -158,7 +158,7 @@ class PragueSkyModel(object):
         --------
         >>> import os
         >>>
-        >>> my_sky = PragueSkyModel()
+        >>> my_sky = PragueSkyModelManager()
         >>> print(my_sky.is_initialised)
         False
         >>> if not os.path.exists('PragueSkyModelDatasetGroundInfra.dat'):  # doctest: +SKIP
@@ -205,7 +205,7 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague import Parameters  # doctest: +SKIP
         >>>
-        >>> my_sky = PragueSkyModel()
+        >>> my_sky = PragueSkyModelManager()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
         >>>
         >>> parameters = Parameters(
@@ -247,7 +247,7 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague import Parameters  # doctest: +SKIP
         >>>
-        >>> my_sky = PragueSkyModel()  # doctest: +SKIP
+        >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
         >>>
         >>> parameters = Parameters(
@@ -316,7 +316,7 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague import Parameters  # doctest: +SKIP
         >>>
-        >>> my_sky = PragueSkyModel()  # doctest: +SKIP
+        >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
         >>>
         >>> parameters = Parameters(
@@ -365,7 +365,7 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague import Parameters  # doctest: +SKIP
         >>>
-        >>> my_sky = PragueSkyModel()  # doctest: +SKIP
+        >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
         >>>
         >>> parameters = Parameters(
@@ -447,12 +447,12 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> PragueSkyModel.compute_parameters(
+        >>> PragueSkyModelManager.compute_parameters(
         ...     viewpoint=np.array([0, 0, 0]), view_direction=np.array([[0, 2/np.sqrt(2), 2/np.sqrt(2)]]),
         ...     ground_level_solar_elevation_at_origin=np.pi/4, ground_level_solar_azimuth_at_origin= np.pi,
         ...     visibility=50, albedo=0.5)  # doctest: +ELLIPSIS
         Parameters(theta=array([0.78539...]), gamma=array([1.04719...]), shadow=array([1.04558...]), zero=array([0.78260...]), elevation=0.78539..., altitude=50.0, visibility=50, albedo=0.5)
-        >>> PragueSkyModel.compute_parameters(
+        >>> PragueSkyModelManager.compute_parameters(
         ...     viewpoint=np.array([0, 0, 0]), view_direction=np.array([[0, 1, 0]]),
         ...     ground_level_solar_elevation_at_origin=np.pi/3, ground_level_solar_azimuth_at_origin= np.pi,
         ...     visibility=50, albedo=0.5)  # doctest: +ELLIPSIS
@@ -1504,13 +1504,13 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> PragueSkyModel.get_interpolation_parameter(query_val=5.6, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter(query_val=5.6, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
         InterpolationParameter(factor=0.59999..., index=3)
-        >>> PragueSkyModel.get_interpolation_parameter(query_val=1.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter(query_val=1.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
         InterpolationParameter(factor=0.0, index=0)
-        >>> PragueSkyModel.get_interpolation_parameter(query_val=2.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter(query_val=2.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
         InterpolationParameter(factor=0.10000..., index=0)
-        >>> PragueSkyModel.get_interpolation_parameter(query_val=8.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter(query_val=8.1, breaks=np.arange(2, 10))  # doctest: +ELLIPSIS
         InterpolationParameter(factor=0.09999..., index=6)
 
         Parameters
@@ -1563,13 +1563,13 @@ class PragueSkyModel(object):
 
         Examples
         --------
-        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 4)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 4)  # doctest: +ELLIPSIS
         InterpolationParameter(factor=array([0.0256]), index=array([0]...))
-        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 3)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter_trans(np.full(1, 0.2), 2, 3)  # doctest: +ELLIPSIS
         InterpolationParameter(factor=array([0.064]), index=array([0]...))
-        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.1), 2, 3)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter_trans(np.full(1, 0.1), 2, 3)  # doctest: +ELLIPSIS
         InterpolationParameter(factor=array([0.008]), index=array([0]...))
-        >>> PragueSkyModel.get_interpolation_parameter_trans(np.full(1, 0.5), 2, 3)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.get_interpolation_parameter_trans(np.full(1, 0.5), 2, 3)  # doctest: +ELLIPSIS
         InterpolationParameter(factor=array([0.]), index=array([1]...))
 
         Parameters
@@ -1606,9 +1606,9 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague.skytypes import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
-        ...     gamma=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
-        ...     alpha=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
-        ...     zero=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
+        ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
+        ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
+        ...     zero=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
         ... )
         >>> con_params = np.linspace(1, 2, 25).reshape((1, 1, -1))
         >>> meta = Metadata(
@@ -1616,7 +1616,7 @@ class PragueSkyModel(object):
         ...     zenith_offset=10, zenith_stride=20, zenith_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
         ...     emph_offset=20, emph_breaks=np.linspace(0, 2*np.pi, 5),
         ...     total_coefs_single_config=25, total_coefs_all_config=25)
-        >>> PragueSkyModel.reconstruct(rad_params, con_params, meta)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.reconstruct(rad_params, con_params, meta)  # doctest: +ELLIPSIS
         3.77387...
 
         Parameters
@@ -1672,9 +1672,9 @@ class PragueSkyModel(object):
         --------
         >>> from sky.prague.skytypes import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
-        ...     gamma=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
-        ...     alpha=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
-        ...     zero=PragueSkyModel.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
+        ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
+        ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
+        ...     zero=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True))
         ... )
         >>> meta = Metadata(
         ...     rank=1, sun_offset=0, sun_stride=20, sun_breaks=np.linspace(-np.pi/36, 2*np.pi+np.pi/36, 10),
@@ -1683,11 +1683,11 @@ class PragueSkyModel(object):
         ...     total_coefs_single_config=25, total_coefs_all_config=25)
         >>> con_params = ControlParameters(
         ...     coefficients=np.linspace(1, 2, 400).reshape((16, 1, -1)), interpolation_factor=np.full(4, 0.5))
-        >>> PragueSkyModel.interpolate(0, 0, rad_params, con_params, meta)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.interpolate(0, 0, rad_params, con_params, meta)  # doctest: +ELLIPSIS
         3.78492...
         >>> con_params = ControlParameters(
         ...     coefficients=np.linspace(1, 2, 400).reshape((16, 1, -1)), interpolation_factor=np.full(4, 0.1))
-        >>> PragueSkyModel.interpolate(0, 0, rad_params, con_params, meta)  # doctest: +ELLIPSIS
+        >>> PragueSkyModelManager.interpolate(0, 0, rad_params, con_params, meta)  # doctest: +ELLIPSIS
         1.55091...
 
         Parameters
@@ -1713,19 +1713,19 @@ class PragueSkyModel(object):
         # parameters array. There it reconstructs radiance. When returning from recursion interpolates
         # according to elevation, altitude, albedo and visibility at level 3, 2, 1 and 0, respectively.
         if t_level == 4:
-            return PragueSkyModel.reconstruct(angle_parameters, control_parameters.coefficients[t_offset:], metadata)
+            return PragueSkyModelManager.reconstruct(angle_parameters, control_parameters.coefficients[t_offset:], metadata)
         else:
             # Compute the first value
-            result_low = PragueSkyModel.interpolate(t_offset, t_level + 1,
-                                                    angle_parameters, control_parameters, metadata)
+            result_low = PragueSkyModelManager.interpolate(t_offset, t_level + 1,
+                                                           angle_parameters, control_parameters, metadata)
 
             # Skip the second value if not useful or not available.
             if control_parameters.interpolation_factor[t_level] < 1e-06:
                 return result_low
 
             # Compute the second value
-            result_high = PragueSkyModel.interpolate(t_offset + (1 << (3 - t_level)), t_level + 1,
-                                                     angle_parameters, control_parameters, metadata)
+            result_high = PragueSkyModelManager.interpolate(t_offset + (1 << (3 - t_level)), t_level + 1,
+                                                            angle_parameters, control_parameters, metadata)
 
             return lerp(result_low, result_high, control_parameters.interpolation_factor[t_level])
 
