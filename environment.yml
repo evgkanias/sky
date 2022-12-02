@@ -1,4 +1,4 @@
-name: sky
+name: sky-env
 channels:
   - conda-forge
 dependencies:

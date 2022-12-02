@@ -34,10 +34,10 @@ setuptools.setup(
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    package_data={'': [os.path.join('data', 'PragueSkyModelDatasetGroundInfra.dat'),
-                       os.path.join('data', 'standard-parameters.yaml'),
-                       os.path.join('data', 'icon.png')]
-                  },
+    package_data={'': [
+        "README.md",
+        os.path.join('data', 'standard-parameters.yaml')
+    ]},
     install_requires=requirements,
     python_requires=">=3.9",
 )

@@ -60,6 +60,7 @@ cd sky
    2. using conda :
       ```commandline
       conda env create -f environment.yml
+      conda activate sky-env
       ```
 3. Install the package.
    1. using pip :
