@@ -30,5 +30,10 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with doctest
       run: |
-        conda install doctest
-        doctest
+        cd test
+        python prague_doctest.py
+        python geometry_doctest.py
+        python observer_doctest.py
+        python ephemeris_doctest.py
+        python render_doctest.py
+        python sky_doctest.py
