@@ -9,4 +9,4 @@ requires = [
     "requests>=2.9.2",
     "pytz~=2021.1"
 ]
-build-backed = "setuptools.build_meta"
+build-backend = "setuptools.build_meta"
