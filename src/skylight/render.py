@@ -1,5 +1,5 @@
 """
-Package that allows rendering of the sky radiance, transmittance, and polarisation to RGBA images.
+Package that allows rendering of the skylight radiance, transmittance, and polarisation to RGBA images.
 """
 
 __author__ = "Evripidis Gkanias"
@@ -26,8 +26,8 @@ def render_pixels(sky_model, albedo, altitude, visibility, resolution, mode):
 
     Examples
     --------
-    >>> import sky
-    >>> s = sky.AnalyticalSky(theta_s=np.pi/6, phi_s=np.pi)
+    >>> import skylight
+    >>> s = skylight.AnalyticalSky(theta_s=np.pi/6, phi_s=np.pi)
     >>> y = render_pixels(s, 0.5, 0.0, 59.4, 3, 0)
     >>> y.shape
     (58, 3, 3)
@@ -97,7 +97,7 @@ def render_pixels(sky_model, albedo, altitude, visibility, resolution, mode):
     if isinstance(mode, str):
         mode = MODES.index(mode.lower())
 
-    # We are viewing the sky from 'altitude' meters above the origin
+    # We are viewing the skylight from 'altitude' meters above the origin
     viewpoint = np.array([0, 0, altitude], dtype='float64')
 
     # Create the output buffer and initialise to zero
@@ -118,7 +118,7 @@ def render_pixels(sky_model, albedo, altitude, visibility, resolution, mode):
 
     si = sky_model(views_ori, SPECTRUM_WAVELENGTHS, albedo, altitude, visibility, mode)
 
-    # Based on the selected model compute spectral sky radiance, sun radiance, polarisation, or transmittance.
+    # Based on the selected model compute spectral skylight radiance, sun radiance, polarisation, or transmittance.
     if mode == 1:  # Sun radiance
         spectrum = si.sun_radiance
     elif mode == 2:  # Polarisation

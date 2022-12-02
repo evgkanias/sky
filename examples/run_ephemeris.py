@@ -1,5 +1,5 @@
-from sky.observer import Observer
-from sky.ephemeris import Sun
+from skylight.observer import Observer
+from skylight.ephemeris import Sun
 
 import numpy as np
 import matplotlib.pyplot as plt

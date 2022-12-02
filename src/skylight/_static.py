@@ -38,7 +38,7 @@ T_L = np.array([[ 0.1787, -1.4630],
 """Transformation matrix of turbidity to luminance coefficients"""
 
 MODES = [
-    "sky radiance",
+    "skylight radiance",
     "sun radiance",
     "polarisation",
     "transmittance",
@@ -539,7 +539,7 @@ class TransmittanceParameters:
 @dataclass
 class SkyInfo:
     """
-    Extracted information from the sky based on the rendering parameters.
+    Extracted information from the skylight based on the rendering parameters.
     """
 
     sun_direction: {np.ndarray}

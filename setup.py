@@ -8,7 +8,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fr:
     requirements = fr.read().splitlines()
 
 setuptools.setup(
-    name="sky",
+    name="skylight",
     version="v1.0-beta",
     author="Evripidis Gkanias",
     maintainer="Evripidis Gkanias",

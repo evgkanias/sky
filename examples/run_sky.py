@@ -1,7 +1,7 @@
-from sky import PragueSky, AnalyticalSky, UniformSky, SkyInfo
-from sky.render import apply_exposure, spectrum2rgb, SPECTRUM_WAVELENGTHS
+from skylight import PragueSky, AnalyticalSky, UniformSky, SkyInfo
+from skylight.render import apply_exposure, spectrum2rgb, SPECTRUM_WAVELENGTHS
 
-import sky.geometry as geo
+import skylight.geometry as geo
 
 from scipy.interpolate import interp1d
 
@@ -25,12 +25,12 @@ def get_rgb(v):
 
 def visualise(si, exposure=0.0, title="light-properties"):
     """
-    Plots the angle of polarisation in the sky.
+    Plots the angle of polarisation in the skylight.
 
     Parameters
     ----------
     si: SkyInfo
-        the sky instance.
+        the skylight instance.
     exposure: float
         the exposure
     title: str
@@ -69,16 +69,16 @@ def visualise(si, exposure=0.0, title="light-properties"):
 
 def plot_disc(v, elevation, azimuth, cmap="Greys_r", vmin=0, vmax=1, ax=None):
     """
-    Plots the sky luminance.
+    Plots the skylight luminance.
 
     Parameters
     ----------
     v: np.ndarray[float]
         the value to plot.
     elevation: np.ndarray[float]
-        the elevation of the sky elements in rad.
+        the elevation of the skylight elements in rad.
     azimuth: np.ndarray[float]
-        the azimuth of the sky elements in rad.
+        the azimuth of the skylight elements in rad.
     cmap: str
         the colour map.
     vmin: float
@@ -127,18 +127,18 @@ if __name__ == "__main__":
     sky.initialise(os.path.join("..", "data", "PragueSkyModelDatasetGroundInfra.dat"))
     si = sky(ori, wavelengths=SPECTRUM_WAVELENGTHS)
 
-    visualise(si, exposure=-6.0, title="prague sky")
+    visualise(si, exposure=-6.0, title="prague skylight")
 
     # ANALYTICAL MODEL
     sky = AnalyticalSky(sun_theta, sun_phi)
     si = sky(ori, wavelengths=SPECTRUM_WAVELENGTHS)
 
-    visualise(si, exposure=-6.0, title="analytical sky")
+    visualise(si, exposure=-6.0, title="analytical skylight")
 
     # UNIFORM MODEL
     sky = UniformSky(sun_theta, sun_phi)
     si = sky(ori, wavelengths=SPECTRUM_WAVELENGTHS)
 
-    visualise(si, exposure=-6.0, title="uniform sky")
+    visualise(si, exposure=-6.0, title="uniform skylight")
 
     plt.show()

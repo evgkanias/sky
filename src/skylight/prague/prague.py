@@ -12,9 +12,9 @@ __maintainer__ = "Evripidis Gkanias"
 
 from .._static import *
 from .io import *
-from sky.exceptions import *
+from skylight.exceptions import *
 
-import sky.geometry as geo
+import skylight.geometry as geo
 
 import numpy as np
 import warnings
@@ -25,11 +25,11 @@ eps = np.finfo(float).eps
 class PragueSkyModelManager(object):
     def __init__(self):
         """
-        Implementation of the physically-based sky model presented by [1]_ and [2]_. Improves on previous work
+        Implementation of the physically-based skylight model presented by [1]_ and [2]_. Improves on previous work
         especially in accuracy of sunset scenarios. Based on reconstruction of radiance from a small dataset
         fitted to a large set of images obtained by brute force atmosphere simulation.
 
-        Provides evaluation of spectral sky radiance, sun radiance, transmittance and polarisation for observer at
+        Provides evaluation of spectral skylight radiance, sun radiance, transmittance and polarisation for observer at
         a specific altitude above ground. The range of configurations depends on supplied dataset. The full
         version models atmosphere of visibility (meteorological range) from 20 km to 131.8 km for sun elevations
         from -4.2 degrees to 90 degrees, observer altitudes from 0 km to 15 km and ground albedo from 0 to 1, and
@@ -203,7 +203,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import Parameters  # doctest: +SKIP
+        >>> from skylight.prague import Parameters  # doctest: +SKIP
         >>>
         >>> my_sky = PragueSkyModelManager()
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
@@ -245,7 +245,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import Parameters  # doctest: +SKIP
+        >>> from skylight.prague import Parameters  # doctest: +SKIP
         >>>
         >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
@@ -314,7 +314,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import Parameters  # doctest: +SKIP
+        >>> from skylight.prague import Parameters  # doctest: +SKIP
         >>>
         >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
@@ -363,7 +363,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import Parameters  # doctest: +SKIP
+        >>> from skylight.prague import Parameters  # doctest: +SKIP
         >>>
         >>> my_sky = PragueSkyModelManager()  # doctest: +SKIP
         >>> my_sky.initialise('PragueSkyModelDatasetGroundInfra.dat')  # doctest: +SKIP
@@ -1210,7 +1210,7 @@ class PragueSkyModelManager(object):
 
     def __evaluate_model(self, params, wavelength, data, metadata):
         """
-        Evaluates the model. Used for computing sky radiance and polarisation.
+        Evaluates the model. Used for computing skylight radiance and polarisation.
 
         Parameters
         ----------
@@ -1283,7 +1283,7 @@ class PragueSkyModelManager(object):
     def __get_coefficients(self, dataset, elevation, altitude, visibility, albedo, wavelengths):
         """
         Gets iterator to coefficients in the dataset array corresponding to the given configuration. Used for
-        sky radiance and polarisation.
+        skylight radiance and polarisation.
 
         Parameters
         ----------
@@ -1604,7 +1604,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import AngleParameters, Metadata
+        >>> from skylight.prague import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
         ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
         ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
@@ -1670,7 +1670,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague import AngleParameters, Metadata
+        >>> from skylight.prague import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
         ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
         ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),

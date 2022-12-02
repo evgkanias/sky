@@ -17,7 +17,7 @@ from . import prague
 from .observer import Observer, get_seville_observer
 from .ephemeris import Sun
 
-import sky.geometry as geo
+import skylight.geometry as geo
 
 from scipy.spatial.transform import Rotation as R
 from datetime import datetime
@@ -27,17 +27,17 @@ import numpy as np
 
 
 class SkyBase(object):
-    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="sky"):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="skylight"):
         """
         The basic Sky class.
 
-        This is a callable class, which provides sky information on the given location, direction, and atmospheric
+        This is a callable class, which provides skylight information on the given location, direction, and atmospheric
         conditions.
 
         Examples
         --------
-        >>> SkyBase(theta_s=0, phi_s=40, degrees=True, name='my sky')
-        SkyBase(sun_azimuth=40.0, sun_elevation=0.0, name='my sky', is_generated=False)
+        >>> SkyBase(theta_s=0, phi_s=40, degrees=True, name='my skylight')
+        SkyBase(sun_azimuth=40.0, sun_elevation=0.0, name='my skylight', is_generated=False)
 
         Parameters
         ----------
@@ -48,7 +48,7 @@ class SkyBase(object):
         degrees : bool
             flag of whether the angles are represented in degrees or radians.
         name : str
-            a name for the sky.
+            a name for the skylight.
         """
         self.__max_radiance = 1.
         theta_s = np.deg2rad(theta_s) if degrees else theta_s
@@ -65,7 +65,7 @@ class SkyBase(object):
 
         Examples
         --------
-        >>> s = SkyBase(theta_s=0, phi_s=40, degrees=True, name='my sky')
+        >>> s = SkyBase(theta_s=0, phi_s=40, degrees=True, name='my skylight')
         >>> s.is_generated
         False
         >>> s(np.array([[0., 0., 1.]]), wavelengths=np.array([[540]]))  # doctest: +ELLIPSIS
@@ -91,7 +91,7 @@ class SkyBase(object):
         Returns
         -------
         SkyInstance
-            the available sky information with respect to the given parameters
+            the available skylight information with respect to the given parameters
         """
 
         assert self.is_initialised
@@ -152,23 +152,23 @@ class SkyBase(object):
 
         Examples
         --------
-        >>> s = SkyBase(theta_s=0, phi_s=40, degrees=True, name='my sky')
+        >>> s = SkyBase(theta_s=0, phi_s=40, degrees=True, name='my skylight')
         >>> s2 = s.copy()
         >>> s2
-        SkyBase(sun_azimuth=40.0, sun_elevation=0.0, name='my sky', is_generated=False)
+        SkyBase(sun_azimuth=40.0, sun_elevation=0.0, name='my skylight', is_generated=False)
         >>> s == s2
         False
         >>> str(s) == str(s2)
         True
-        >>> su = UniformSky(theta_s=0, phi_s=40, degrees=True, name='my uniform sky')
+        >>> su = UniformSky(theta_s=0, phi_s=40, degrees=True, name='my uniform skylight')
         >>> su.copy()
-        UniformSky(sun_azimuth=40.0, sun_elevation=0.0, name='my uniform sky', is_generated=False)
-        >>> sa = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical sky')
+        UniformSky(sun_azimuth=40.0, sun_elevation=0.0, name='my uniform skylight', is_generated=False)
+        >>> sa = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical skylight')
         >>> sa.copy()
-        AnalyticalSky(sun_azimuth=40.0, sun_elevation=0.0, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='my analytical sky', is_generated=False)
-        >>> sp = PragueSky(theta_s=0, phi_s=40, degrees=True, name='my prague sky')
+        AnalyticalSky(sun_azimuth=40.0, sun_elevation=0.0, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='my analytical skylight', is_generated=False)
+        >>> sp = PragueSky(theta_s=0, phi_s=40, degrees=True, name='my prague skylight')
         >>> sp.copy()
-        PragueSky(sun_azimuth=40.0, sun_elevation=0.0, name='my prague sky', is_generated=False, is_initialised=False)
+        PragueSky(sun_azimuth=40.0, sun_elevation=0.0, name='my prague skylight', is_generated=False, is_initialised=False)
 
         Returns
         -------
@@ -262,19 +262,19 @@ class SkyBase(object):
     @classmethod
     def from_observer(cls, obs=None, date=None, ori=None, name=None):
         """
-        Creates a sky instance using an observer on Earth.
+        Creates a skylight instance using an observer on Earth.
 
         Examples
         --------
         >>> o = get_seville_observer()
         >>> SkyBase.from_observer(o, datetime(2022, 12, 1, 10))
-        SkyBase(sun_azimuth=115.8, sun_elevation=79.6, name='Seville basic sky', is_generated=False)
+        SkyBase(sun_azimuth=115.8, sun_elevation=79.6, name='Seville basic skylight', is_generated=False)
         >>> AnalyticalSky.from_observer(o, datetime(2022, 12, 1, 10))
-        AnalyticalSky(sun_azimuth=115.8, sun_elevation=79.6, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='Seville analytical sky', is_generated=False)
+        AnalyticalSky(sun_azimuth=115.8, sun_elevation=79.6, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='Seville analytical skylight', is_generated=False)
         >>> UniformSky.from_observer(o, datetime(2022, 12, 1, 10))
-        UniformSky(sun_azimuth=115.8, sun_elevation=79.6, name='Seville uniform sky', is_generated=False)
+        UniformSky(sun_azimuth=115.8, sun_elevation=79.6, name='Seville uniform skylight', is_generated=False)
         >>> PragueSky.from_observer(o, datetime(2022, 12, 1, 10))
-        PragueSky(sun_azimuth=115.8, sun_elevation=79.6, name='Seville prague sky', is_generated=False, is_initialised=False)
+        PragueSky(sun_azimuth=115.8, sun_elevation=79.6, name='Seville prague skylight', is_generated=False, is_initialised=False)
 
         Parameters
         ----------
@@ -285,7 +285,7 @@ class SkyBase(object):
         ori : R, optioanl
             the heading orientation of the observer. Default is 0.
         name : str, optional
-            the name of the sky instance.
+            the name of the skylight instance.
 
         Returns
         -------
@@ -305,20 +305,20 @@ class SkyBase(object):
         theta_s, phi_s = sun.alt, (sun.az - yaw + np.pi) % (2 * np.pi) - np.pi
 
         if name is None:
-            name = f"{obs.city} {cls.__name__.lower().replace('skybase', 'basic ').replace('sky', ' ')}sky"
+            name = f"{obs.city} {cls.__name__.lower().replace('skybase', 'basic ').replace('skylight', ' ')}skylight"
 
         return cls(theta_s=theta_s, phi_s=phi_s, name=name)
 
 
 class UniformSky(SkyBase):
-    def __init__(self, theta_s=0., phi_s=0., degrees=False, radiance=1., name="uniform-sky"):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, radiance=1., name="uniform-skylight"):
         """
-        A sky with uniform intensity of light for all the wavelengths.
+        A skylight with uniform intensity of light for all the wavelengths.
 
         Examples
         --------
-        >>> UniformSky(theta_s=0, phi_s=40, degrees=True, name='my uniform sky')
-        UniformSky(sun_azimuth=40.0, sun_elevation=0.0, name='my uniform sky', is_generated=False)
+        >>> UniformSky(theta_s=0, phi_s=40, degrees=True, name='my uniform skylight')
+        UniformSky(sun_azimuth=40.0, sun_elevation=0.0, name='my uniform skylight', is_generated=False)
 
         Parameters
         ----------
@@ -329,9 +329,9 @@ class UniformSky(SkyBase):
         degrees : bool
             whether the solar elevation and azimuth are given in degrees or not. Default is radians.
         radiance : float
-            the uniform sky radiance level.
+            the uniform skylight radiance level.
         name : str
-            the name of the sky instance.
+            the name of the skylight instance.
         """
         super(UniformSky, self).__init__(theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
         self.max_radiance = radiance
@@ -342,15 +342,15 @@ class UniformSky(SkyBase):
 
 class AnalyticalSky(SkyBase):
 
-    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="sky"):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="skylight"):
         """
         The Analycal Sky class.
         This class provides skylight cues by using an analytical solution.
 
         Examples
         --------
-        >>> AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical sky')
-        AnalyticalSky(sun_azimuth=40.0, sun_elevation=0.0, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='my analytical sky', is_generated=False)
+        >>> AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical skylight')
+        AnalyticalSky(sun_azimuth=40.0, sun_elevation=0.0, a=-1.11, b=-0.28, c=5.28, d=-2.34, e=0.24, name='my analytical skylight', is_generated=False)
 
         Parameters
         ----------
@@ -361,7 +361,7 @@ class AnalyticalSky(SkyBase):
         degrees: bool, optional
             True if the angles are given in degrees, False otherwise. Default is False
         name: str, optional
-            a name for the sky instance. Default is 'sky'
+            a name for the skylight instance. Default is 'skylight'
         """
         SkyBase.__init__(self, theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
         self.__a, self.__b, self.__c, self.__d, self.__e = 0., 0., 0., 0., 0.
@@ -376,7 +376,7 @@ class AnalyticalSky(SkyBase):
 
         Examples
         --------
-        >>> s = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my sky')
+        >>> s = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my skylight')
         >>> s.is_generated
         False
         >>> s(np.array([[0., 0., 1.]]), wavelengths=np.array([540]))  # doctest: +ELLIPSIS
@@ -490,7 +490,7 @@ class AnalyticalSky(SkyBase):
 
         Examples
         --------
-        >>> s = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical sky')
+        >>> s = AnalyticalSky(theta_s=0, phi_s=40, degrees=True, name='my analytical skylight')
         >>> s.L(np.pi/2, np.pi/2)
         0.0
         >>> s.L(0., np.pi/2)  # doctest: +ELLIPSIS
@@ -713,22 +713,22 @@ class AnalyticalSky(SkyBase):
     @staticmethod
     def from_type(sky_type):
         """
-        Creates a sky model using a type description.
+        Creates a skylight model using a type description.
             1) Steep luminance gradation towards zenith, azimuthal uniformity
             2) Overcast, with steep luminance gradation and slight brightening towards the sun
             3) Overcast, moderately graded with azimuthal uniformity
             4) Overcast, moderately graded and slightly brightening towards the sun
             5) Sky uniform luminance
-            6) Partly cloudy sky, no gradation towards zenith, slight brighening towards the sun
-            7) Partly cloudy sky, no gradation towards zenith, brighter circumsolar region
-            8) Partly cloudy sky, no gradation towards zenith, distinct solar corona
+            6) Partly cloudy skylight, no gradation towards zenith, slight brighening towards the sun
+            7) Partly cloudy skylight, no gradation towards zenith, brighter circumsolar region
+            8) Partly cloudy skylight, no gradation towards zenith, distinct solar corona
             9) Partly cloudy, with the obscured sun
             10) Partly cloudy, with brighter circumsolar region
-            11) White-blue sky with distinct solar corona
+            11) White-blue skylight with distinct solar corona
             12) CIE Standard Clear Sky, low illuminance turbidity
             13) CIE Standard Clear Sky, polluted atmosphere
-            14) Cloudless turbid sky with broad solar corona
-            15) White-blue turbid sky with broad solar corona
+            14) Cloudless turbid skylight with broad solar corona
+            15) White-blue turbid skylight with broad solar corona
 
         Examples
         --------
@@ -743,7 +743,7 @@ class AnalyticalSky(SkyBase):
         Parameters
         ----------
         sky_type: int
-            a number in range [1-15] identifying the type of the sky
+            a number in range [1-15] identifying the type of the skylight
 
         Returns
         -------
@@ -828,14 +828,14 @@ class AnalyticalSky(SkyBase):
 
 
 class PragueSky(SkyBase):
-    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="prague-sky"):
+    def __init__(self, theta_s=0., phi_s=0., degrees=False, name="prague-skylight"):
         """
         The Sky environment class. This class provides skylight cues by using an analytical solution.
 
         Examples
         --------
-        >>> PragueSky(theta_s=0, phi_s=40, degrees=True, name='my prague sky')
-        PragueSky(sun_azimuth=40.0, sun_elevation=0.0, name='my prague sky', is_generated=False, is_initialised=False)
+        >>> PragueSky(theta_s=0, phi_s=40, degrees=True, name='my prague skylight')
+        PragueSky(sun_azimuth=40.0, sun_elevation=0.0, name='my prague skylight', is_generated=False, is_initialised=False)
 
         Parameters
         ----------
@@ -846,7 +846,7 @@ class PragueSky(SkyBase):
         degrees: bool, optional
             True if the angles are given in degrees, False otherwise. Default is False
         name: str, optional
-            a name for the sky instance. Default is 'prague-sky'
+            a name for the skylight instance. Default is 'prague-skylight'
         """
         SkyBase.__init__(self, theta_s=theta_s, phi_s=phi_s, degrees=degrees, name=name)
         self.__model = prague.PragueSkyModelManager()
@@ -866,7 +866,7 @@ class PragueSky(SkyBase):
         if visibility is None:
             visibility = 59.4
 
-        # We are viewing the sky from 'altitude' meters above the origin
+        # We are viewing the skylight from 'altitude' meters above the origin
         viewpoint = np.array([0, 0, altitude], dtype='float64')
         views_arr = geo.get_coordinates(ori)
 
