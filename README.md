@@ -36,8 +36,12 @@ baseline model.
 
 ## Installation
 
-In order to install the package and reproduce the results of the manuscript you need to clone
-the code, navigate to the main directory of the project, install the dependencies and finally
+You can easily install the package by using pip as:
+```commandline
+pip install git+https://github.com/evgkanias/sky.git
+```
+
+Alternatively you need to clone the GitHub repository, navigate to the main directory of the project, install the dependencies and finally
 the package itself. Here is an example code that installs the package:
 
 1. Clone this repo.
