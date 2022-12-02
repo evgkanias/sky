@@ -14,3 +14,8 @@ install:
 script:
   - cd test
   - python prague_doctest.py
+  - python geometry_doctest.py
+  - python observer_doctest.py
+  - python ephemeris_doctest.py
+  - python render_doctest.py
+  - python sky_doctest.py

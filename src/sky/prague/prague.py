@@ -10,9 +10,9 @@ __license__ = "GPLv3+"
 __version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
+from .._static import *
 from .io import *
-from .skytypes import *
-from .exceptions import *
+from sky.exceptions import *
 
 import sky.geometry as geo
 
@@ -1604,7 +1604,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague.skytypes import AngleParameters, Metadata
+        >>> from sky.prague import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
         ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
         ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),
@@ -1670,7 +1670,7 @@ class PragueSkyModelManager(object):
 
         Examples
         --------
-        >>> from sky.prague.skytypes import AngleParameters, Metadata
+        >>> from sky.prague import AngleParameters, Metadata
         >>> rad_params = AngleParameters(
         ...     gamma=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/3), np.linspace(0, np.pi, 19, endpoint=True)),
         ...     alpha=PragueSkyModelManager.get_interpolation_parameter(np.full(1, np.pi/6), np.linspace(0, np.pi/2, 10, endpoint=True)),

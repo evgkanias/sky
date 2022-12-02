@@ -1,20 +1,17 @@
 """
 Package that contains functions related to the sun course given the day, time and an observer on Earth.
 """
-
 __author__ = "Evripidis Gkanias"
 __copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
-                "Institude of Perception, Action and Behaviour," \
                 "School of Informatics, the University of Edinburgh"
 __credits__ = ["Evripidis Gkanias"]
 __license__ = "GPLv3+"
-__version__ = "v1.0.0-alpha"
+__version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
 from .observer import Observer
 
 from datetime import datetime
-from pytz import timezone
 
 import numpy as np
 
@@ -25,6 +22,12 @@ class Sun(object):
         Instance of the sun based on the observer on Earth. The observer contains information like their longitude and
         latitude and the date and time, which are used by the sun in order to compute it position with respect to the
         observer.
+
+        Examples
+        --------
+        >>> o = Observer(lon=np.deg2rad(0), lat=np.deg2rad(42), date=datetime(2022, 12, 1, 9))
+        >>> Sun(o)
+        Sun(azimuth=2.4383157531483253, elevation=0.26511958245980255, lon=0.0, lat=0.7330382858376184, ready=True)
 
         Parameters
         ----------
@@ -133,6 +136,12 @@ class Sun(object):
 
         self.compute(self.obs)
 
+    def __repr__(self):
+        o = ""
+        if self.obs is not None:
+            o = f", lon={self.obs.lon}, lat={self.obs.lat}"
+        return f"Sun(azimuth={self.az}, elevation={self.alt}{o}, ready={self.is_ready})"
+
     @property
     def obs(self):
         """
@@ -230,8 +239,15 @@ class Sun(object):
 
 def julian_day(date):
     """
-    The Julian day is the continuous count of days since the beginning of the Julian period, and is used primarily by
-    astronomers, and in software for easily calculating elapsed days between two events.
+    The Julian day is the continuous count of days since the beginning of the Julian period (January 1 noon, 4713 BC),
+    and is used primarily by astronomers, and in software for easily calculating elapsed days between two events.
+
+    Examples
+    --------
+    >>> julian_day(datetime(1, 1, 1, 0, 0, 0))
+    1721425.5
+    >>> julian_day(datetime(2022, 12, 1, 12, 0, 0))
+    2459915.0
 
     Parameters
     ----------
@@ -250,6 +266,13 @@ def julian_century(jd):
     """
     The Julian century is the Julian day divided by 36525.
 
+    Examples
+    --------
+    >>> julian_century(1721425.5)  # doctest: +ELLIPSIS
+    -19.98958...
+    >>> julian_century(2459915.0)  # doctest: +ELLIPSIS
+    0.229158...
+
     Parameters
     ----------
     jd: float
@@ -267,6 +290,13 @@ def geom_mean_long_sun(jc):
     """
     The geometric mean longitude of the sun (correct for aberration) at the given Julian century.
 
+    Examples
+    --------
+    >>> geom_mean_long_sun(-19.98958247775496)  # doctest: +ELLIPSIS
+    4.89093...
+    >>> geom_mean_long_sun(0.22915811088295687)  # doctest: +ELLIPSIS
+    4.36916...
+
     Parameters
     ----------
     jc: float
@@ -283,6 +313,13 @@ def geom_mean_anom_sun(jc):
     """
     The geometric mean anomaly of the sun during the given Julian century.
 
+    Examples
+    --------
+    >>> geom_mean_anom_sun(-19.98958247775496)  # doctest: +ELLIPSIS
+    -12553.25476...
+    >>> geom_mean_anom_sun(0.22915811088295687)  # doctest: +ELLIPSIS
+    150.22054...
+
     Parameters
     ----------
     jc: float
@@ -298,6 +335,13 @@ def geom_mean_anom_sun(jc):
 def eccent_earth_orbit(jc):
     """
     Eccentricity of Earth's orbit. Inclination of the plane of the Earth's orbit during the Julian century.
+
+    Examples
+    --------
+    >>> eccent_earth_orbit(-19.98958247775496)  # doctest: +ELLIPSIS
+    0.01749...
+    >>> eccent_earth_orbit(0.22915811088295687)  # doctest: +ELLIPSIS
+    0.01669...
 
     Parameters
     ----------
@@ -316,6 +360,13 @@ def sun_eq_of_ctr(jc, gmas):
     The sun equation of center is the angular difference between the actual position of the sun with
     respect to the position of Earth, in its elliptical orbit and the position it would occupy if its motion were
     uniform, in a circular orbit of the same period.
+
+    Examples
+    --------
+    >>> sun_eq_of_ctr(-19.98958247775496, -12553.254765205656)  # doctest: +ELLIPSIS
+    0.01862...
+    >>> sun_eq_of_ctr(0.22915811088295687, 150.22054910694445)  # doctest: +ELLIPSIS
+    -0.01851...
 
     Parameters
     ----------
@@ -337,6 +388,13 @@ def sun_true_long(gmls, seoc):
     """
     The true longitude of the sun.
 
+    Examples
+    --------
+    >>> sun_true_long(4.89093326966249, 0.018625224810268362)  # doctest: +ELLIPSIS
+    4.90955...
+    >>> sun_true_long(4.3691678972595875, -0.0185108976521297)  # doctest: +ELLIPSIS
+    4.35065...
+
     Parameters
     ----------
     gmls: float
@@ -355,6 +413,13 @@ def sun_true_anom(gmas, seoc):
     """
     The true anomaly of the sun.
 
+    Examples
+    --------
+    >>> sun_true_anom(-12553.254765205656, 0.018625224810268362)  # doctest: +ELLIPSIS
+    -12553.23613...
+    >>> sun_true_anom(150.22054910694445, -0.0185108976521297)  # doctest: +ELLIPSIS
+    150.20203...
+
     Parameters
     ----------
     gmas: float
@@ -372,6 +437,13 @@ def sun_true_anom(gmas, seoc):
 def sun_rad_vector(eeo, sta):
     """
     Sun radius vector is the distance from the sun to earth.
+
+    Examples
+    --------
+    >>> sun_rad_vector(0.017498308860870036, -12553.236139980847)  # doctest: +ELLIPSIS
+    0.98516...
+    >>> sun_rad_vector(0.016698994227039993, 150.2020382092923)  # doctest: +ELLIPSIS
+    0.98607...
 
     Parameters
     ----------
@@ -392,6 +464,13 @@ def sun_app_long(jc, stl):
     The apparent longitude of the sun is the celestial longitude corrected for aberration and nutation as opposed
     to the mean longitude.
 
+    Examples
+    --------
+    >>> sun_app_long(-19.98958247775496, 4.909558494472758)  # doctest: +ELLIPSIS
+    4.90954...
+    >>> sun_app_long(0.22915811088295687, 4.350656999607458)  # doctest: +ELLIPSIS
+    4.35050...
+
     Parameters
     ----------
     jc: float
@@ -411,6 +490,13 @@ def mean_obliq_ecliptic(jc):
     The mean obliquity of the ecliptic given the Julian century. The angle between the plane of the earth's orbit and
     the plane of the earth's equator; the "tilt" of the earth.
 
+    Examples
+    --------
+    >>> mean_obliq_ecliptic(-19.98958247775496)  # doctest: +ELLIPSIS
+    0.41355...
+    >>> mean_obliq_ecliptic(0.22915811088295687)  # doctest: +ELLIPSIS
+    0.40904...
+
     Parameters
     ----------
     jc: float
@@ -427,6 +513,13 @@ def obliq_corr(jc, moe):
     """
     The oblique correction refers to a particular type of the radiative corrections in the electroweak sector of the
     Standard model
+
+    Examples
+    --------
+    >>> obliq_corr(-19.98958247775496, 0.4135583997778804)  # doctest: +ELLIPSIS
+    0.41355...
+    >>> obliq_corr(0.22915811088295687, 0.409040793186992)  # doctest: +ELLIPSIS
+    0.40907...
 
     Parameters
     ----------
@@ -447,6 +540,13 @@ def sun_rt_ascen(sal, oc):
     The right ascension of the sun. This is the angular distance of the sun measured eastward along the celestial
     equator from the North at the March equinox to the (hour circle of the) point in question above the earth.
 
+    Examples
+    --------
+    >>> sun_rt_ascen(4.909542539472096, 0.4135565374004205)  # doctest: +ELLIPSIS
+    -1.35602...
+    >>> sun_rt_ascen(4.350502065240473, 0.4090740925117191)  # doctest: +ELLIPSIS
+    -1.96211...
+
     Parameters
     ----------
     sal: float
@@ -463,6 +563,13 @@ def sun_rt_ascen(sal, oc):
 def sun_declin(sal, oc):
     """
     The declination of the sun. This is the angle between the rays of the sun and the plane of the earth's equator.
+
+    Examples
+    --------
+    >>> sun_declin(4.909542539472096, 0.4135565374004205)  # doctest: +ELLIPSIS
+    -0.40507...
+    >>> sun_declin(4.350502065240473, 0.4090740925117191)  # doctest: +ELLIPSIS
+    -0.38115...
 
     Parameters
     ----------
@@ -482,6 +589,13 @@ def var_y(oc):
     """
     The var Y.
 
+    Examples
+    --------
+    >>> var_y(0.4135565374004205)  # doctest: +ELLIPSIS
+    0.04400...
+    >>> var_y(0.4090740925117191)  # doctest: +ELLIPSIS
+    0.04303...
+
     Parameters
     ----------
     oc: float
@@ -497,6 +611,13 @@ def var_y(oc):
 def eq_of_time(gmls, gmas, eeo, vy):
     """
     The equation of time. Describes the discrepancy between two kinds of solar time.
+
+    Examples
+    --------
+    >>> eq_of_time(4.89093326966249, -12553.254765205656, 0.017498308860870036, 0.04400624305111601)  # doctest: +ELLIPSIS
+    -8.28296...
+    >>> eq_of_time(4.3691678972595875, 150.22054910694445, 0.016698994227039993, 0.04303048062858904)  # doctest: +ELLIPSIS
+    10.97725...
 
     Parameters
     ----------
@@ -524,6 +645,13 @@ def ha_sunrise(lat, sd):
     """
     The sunrise hour angle.
 
+    Examples
+    --------
+    >>> ha_sunrise(55.946388, -0.40507056917407647)  # doctest: +ELLIPSIS
+    1.89017...
+    >>> ha_sunrise(55.946388, -0.3811597637734667)  # doctest: +ELLIPSIS
+    1.86975...
+
     Parameters
     ----------
     lat: float
@@ -541,6 +669,17 @@ def ha_sunrise(lat, sd):
 def solar_noon(lon, eot, tz=0):
     """
     The solar noon.
+
+    Examples
+    --------
+    >>> solar_noon(-3.200000, -8.282966477106893)  # doctest: +ELLIPSIS
+    1.01504...
+    >>> solar_noon(-3.200000, 10.977258972213589)  # doctest: +ELLIPSIS
+    1.00167...
+    >>> solar_noon(-3.200000, 10.977258972213589, tz=+1)  # doctest: +ELLIPSIS
+    1.04333...
+    >>> solar_noon(-3.200000, 10.977258972213589, tz=-1)  # doctest: +ELLIPSIS
+    0.96000...
 
     Parameters
     ----------
@@ -562,6 +701,13 @@ def sunrise_time(hasr, sn):
     """
     The sunrise time.
 
+    Examples
+    --------
+    >>> sunrise_time(1.8901777282494314, 1.0150478779476115)  # doctest: +ELLIPSIS
+    0.71421...
+    >>> sunrise_time(1.8697527309361108, 1.0016727213855836)  # doctest: +ELLIPSIS
+    0.70409...
+
     Parameters
     ----------
     hasr: float
@@ -579,6 +725,13 @@ def sunrise_time(hasr, sn):
 def sunset_time(hasr, sn):
     """
     The sunset time.
+
+    Examples
+    --------
+    >>> sunset_time(1.8901777282494314, 1.0150478779476115)  # doctest: +ELLIPSIS
+    1.31587...
+    >>> sunset_time(1.8697527309361108, 1.0016727213855836)  # doctest: +ELLIPSIS
+    1.29925...
 
     Parameters
     ----------
@@ -598,6 +751,13 @@ def sunlight_duration(hasr):
     """
     The duration of the sunlight during the current day.
 
+    Examples
+    --------
+    >>> sunlight_duration(1.8901777282494314)  # doctest: +ELLIPSIS
+    866.39365...
+    >>> sunlight_duration(1.8697527309361108)  # doctest: +ELLIPSIS
+    857.03152...
+
     Parameters
     ----------
     hasr: float
@@ -613,6 +773,17 @@ def sunlight_duration(hasr):
 def true_solar_time(lon, date, eot, tz=0):
     """
     The true solar time.
+
+    Examples
+    --------
+    >>> true_solar_time(-3.200000, datetime(1, 1, 1, 0, 0, 0), -8.282966477106893)  # doctest: +ELLIPSIS
+    698.33105...
+    >>> true_solar_time(-3.200000, datetime(2022, 12, 1, 12, 0, 0), 10.977258972213589)  # doctest: +ELLIPSIS
+    1437.59128...
+    >>> true_solar_time(-3.200000, datetime(2022, 12, 1, 12, 0, 0), 10.977258972213589, tz=+1)  # doctest: +ELLIPSIS
+    1377.59128...
+    >>> true_solar_time(-3.200000, datetime(2022, 12, 1, 12, 0, 0), 10.977258972213589, tz=-1)  # doctest: +ELLIPSIS
+    57.59128...
 
     Parameters
     ----------
@@ -637,6 +808,13 @@ def hour_angle(tst):
     """
     The hour angle.
 
+    Examples
+    --------
+    >>> hour_angle(698.3310557554393)  # doctest: +ELLIPSIS
+    -0.09454...
+    >>> hour_angle(1437.5912812047598)  # doctest: +ELLIPSIS
+    3.13108...
+
     Parameters
     ----------
     tst: float
@@ -653,6 +831,13 @@ def hour_angle(tst):
 def solar_zenith_angle(lat, sd, ha):
     """
     The solar zenith angle.
+
+    Examples
+    --------
+    >>> solar_zenith_angle(55.946388, -0.40507056917407647, -0.0945486056246651)  # doctest: +ELLIPSIS
+    0.21378...
+    >>> solar_zenith_angle(55.946388, -0.3811597637734667, 3.13108263515689)  # doctest: +ELLIPSIS
+    2.15810...
 
     Parameters
     ----------
@@ -674,6 +859,13 @@ def solar_elevation_angle(sza):
     """
     The solar elevation angle.
 
+    Examples
+    --------
+    >>> solar_elevation_angle(0.2137866392984689)  # doctest: +ELLIPSIS
+    1.35700...
+    >>> solar_elevation_angle(2.158102374952806)  # doctest: +ELLIPSIS
+    -0.58730...
+
     Parameters
     ----------
     sza: float
@@ -689,6 +881,13 @@ def solar_elevation_angle(sza):
 def approx_atmospheric_refraction(sea):
     """
     The approximate atmospheric refraction.
+
+    Examples
+    --------
+    >>> approx_atmospheric_refraction(1.3570096874964277)  # doctest: +ELLIPSIS
+    1.04907...e-06
+    >>> approx_atmospheric_refraction(-0.5873060481579095)  # doctest: +ELLIPSIS
+    0.00015...
 
     Parameters
     ----------
@@ -713,6 +912,13 @@ def solar_elevation_corrected_for_atm_refraction(sea, aar):
     """
     The solar elevation corrected for the atmospheric refraction.
 
+    Examples
+    --------
+    >>> solar_elevation_corrected_for_atm_refraction(1.3570096874964277, 1.049078887873835e-06)  # doctest: +ELLIPSIS
+    1.35701...
+    >>> solar_elevation_corrected_for_atm_refraction(-0.5873060481579095, 0.00015128646285593412)  # doctest: +ELLIPSIS
+    -0.58715...
+
     Parameters
     ----------
     sea: float
@@ -730,6 +936,13 @@ def solar_elevation_corrected_for_atm_refraction(sea, aar):
 def solar_azimuth_angle(lat, ha, sza, sd):
     """
     The solar azimuth angle.
+
+    Examples
+    --------
+    >>> solar_azimuth_angle(55.946388, -0.0945486056246651, 0.2137866392984689, -0.40507056917407647)  # doctest: +ELLIPSIS
+    0.42132...
+    >>> solar_azimuth_angle(55.946388, 3.13108263515689, 2.158102374952806, -0.3811597637734667)  # doctest: +ELLIPSIS
+    3.15331...
 
     Parameters
     ----------
@@ -757,6 +970,18 @@ def relative_to_absolute_time(obs, time):
     """
     Gets the data and timezone from an observer and overwrites its time based on the given time in days.
 
+    Examples
+    --------
+    >>> o = Observer(lon=-3.200000, lat=55.946388, city='Edinburgh', degrees=True, date=datetime(2022, 12, 1, 12, 0, 0))
+    >>> relative_to_absolute_time(o, 0.)  # doctest: +ELLIPSIS
+    datetime.datetime(2022, 12, 1, 0, 0)
+    >>> relative_to_absolute_time(o, 0.25)  # doctest: +ELLIPSIS
+    datetime.datetime(2022, 12, 1, 6, 0)
+    >>> relative_to_absolute_time(o, 0.5)  # doctest: +ELLIPSIS
+    datetime.datetime(2022, 12, 1, 12, 0)
+    >>> relative_to_absolute_time(o, 10.5)  # doctest: +ELLIPSIS
+    datetime.datetime(2022, 12, 1, 12, 0)
+
     Parameters
     ----------
     obs: Observer
@@ -773,34 +998,3 @@ def relative_to_absolute_time(obs, time):
     s = (m - int(m)) * 60
     return datetime(year=obs.date.year, month=obs.date.month, day=obs.date.day,
                     hour=int(h), minute=int(m), second=int(s), tzinfo=obs.timezone)
-
-
-# if __name__ == '__main__':
-#     from observer import Observer
-#
-#     import matplotlib.pyplot as plt
-#
-#     obs = Observer(lon=np.deg2rad(0), lat=np.deg2rad(42), date=datetime.now())
-#     sun = Sun(obs)
-#
-#     plt.figure()
-#     for c, lat in [['r', np.deg2rad(0)],
-#                    ['y', np.deg2rad(22.5)],
-#                    ['g', np.deg2rad(45)],
-#                    ['b', np.deg2rad(67.5)],
-#                    ['c', np.deg2rad(89)]]:
-#         sun.lat = lat
-#         e, a = [], []
-#         for h in range(24):
-#             sun.date = datetime(2020, 9, 21, h, tzinfo=timezone('GMT'))
-#             e.append(sun.alt)
-#             a.append(sun.az)
-#
-#         e, a = np.array(e), np.array(a)
-#
-#         plt.plot(a, e, '%s.-' % c)
-#     plt.xlim([0, 2 * np.pi])
-#     plt.ylim([0, np.pi/2])
-#
-#     plt.show()
-#

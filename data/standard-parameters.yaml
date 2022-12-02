@@ -1,13 +1,11 @@
-"""
-Standard relative luminance distribution parameters according to [1]_.
-They are based on six grous of a and b values for the gradation function and six groups of c, d and e values
-for the indicatrix function.
+# Standard relative luminance distribution parameters according to [1]_.
+# They are based on six grous of a and b values for the gradation function and six groups of c, d and e values
+# for the indicatrix function.
 
-Notes
------
-.. [1] Darula, Stanislav, and Richard Kittler. 'CIE general agent_old standard defining luminance distributions.'
-   Proceedings eSim (2002): 11-13.
-"""
+# Notes
+# -----
+# .. [1] Darula, Stanislav, and Richard Kittler. 'CIE general agent_old standard defining luminance distributions.'
+#   Proceedings eSim (2002): 11-13.
 
 gradation:
   1:

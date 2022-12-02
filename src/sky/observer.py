@@ -5,11 +5,10 @@ calculate the sun position and also how this changes based on the movement of th
 
 __author__ = "Evripidis Gkanias"
 __copyright__ = "Copyright (c) 2022, Insect Robotics Group," \
-                "Institude of Perception, Action and Behaviour," \
                 "School of Informatics, the University of Edinburgh"
 __credits__ = ["Evripidis Gkanias"]
 __license__ = "GPLv3+"
-__version__ = "v1.0.0-alpha"
+__version__ = "v1.0-beta"
 __maintainer__ = "Evripidis Gkanias"
 
 from datetime import datetime, tzinfo
@@ -23,6 +22,11 @@ class Observer(object):
     def __init__(self, lon=None, lat=None, date=datetime.now(), city=None, degrees=False):
         """
         The observer on Earth holds information about its longitude and latitude, date and time.
+
+        Examples
+        --------
+        >>> Observer(lon=-3.200000, lat=55.946388, city='Edinburgh', degrees=True)  # doctest: +ELLIPSIS
+        Observer(lon='-3.200000', lat='55.946388', city='Edinburgh', date='...', timezone='None')
 
         Parameters
         ----------
@@ -157,6 +161,15 @@ class Observer(object):
         """
         Creates a copy of the observer.
 
+        Examples
+        --------
+        >>> o = get_live_observer()  # doctest: +ELLIPSIS
+        >>> c = o.copy()
+        >>> c == o
+        False
+        >>> str(o) == str(c)
+        True
+
         Returns
         -------
         Observer
@@ -180,6 +193,11 @@ def get_seville_observer():
     - latitude: 37.392509
     - longitude: -5.983877
 
+    Examples
+    --------
+    >>> get_seville_observer()  # doctest: +ELLIPSIS
+    Observer(lon='-5.983877', lat='37.392509', city='Seville', date='...', timezone='None')
+
     Returns
     -------
     Observer
@@ -199,6 +217,11 @@ def get_edinburgh_observer():
     - latitude: 55.946388
     - longitude: -3.200000
 
+    Examples
+    --------
+    >>> get_edinburgh_observer()  # doctest: +ELLIPSIS
+    Observer(lon='-3.200000', lat='55.946388', city='Edinburgh', date='...', timezone='None')
+
     Returns
     -------
     Observer
@@ -214,6 +237,11 @@ def get_edinburgh_observer():
 def get_live_observer():
     """
     Creates an observer based on your current location, date and time.
+
+    Examples
+    --------
+    >>> get_live_observer()  # doctest: +ELLIPSIS
+    Observer(lon='...', lat='...', city='...', date='...', timezone='...')
 
     Returns
     -------
