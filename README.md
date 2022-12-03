@@ -1,4 +1,4 @@
-# The sky project ![GitHub top language](https://img.shields.io/github/languages/top/evgkanias/sky) [![GitHub license](https://img.shields.io/github/license/evgkanias/sky)](https://github.com/evgkanias/sky/blob/main/LICENSE) ![GitHub last-commit](https://img.shields.io/github/last-commit/evgkanias/sky) ![Build Status](https://app.travis-ci.com/evgkanias/sky.svg?branch=main)
+# The skylight project ![GitHub top language](https://img.shields.io/github/languages/top/evgkanias/sky) [![GitHub license](https://img.shields.io/github/license/evgkanias/sky)](https://github.com/evgkanias/sky/blob/main/LICENSE) ![GitHub last-commit](https://img.shields.io/github/last-commit/evgkanias/sky) ![Build Status](https://app.travis-ci.com/evgkanias/sky.svg?branch=main)
 
 ![vevoda_2022_teaser](docs/vevoda_2022_infrared_sky_teaser.png)
 
