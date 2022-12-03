@@ -1,6 +1,6 @@
 # The skylight project ![GitHub top language](https://img.shields.io/github/languages/top/evgkanias/sky) [![GitHub license](https://img.shields.io/github/license/evgkanias/sky)](https://github.com/evgkanias/sky/blob/main/LICENSE) ![GitHub last-commit](https://img.shields.io/github/last-commit/evgkanias/sky) ![Build Status](https://app.travis-ci.com/evgkanias/sky.svg?branch=main)
 
-![vevoda_2022_teaser](docs/vevoda_2022_infrared_sky_teaser.png)
+![vevoda-2022-teaser](https://raw.githubusercontent.com/evgkanias/sky/a3eb1e695daeca79d8e4c82b281208745a8f24ad/docs/vevoda_2022_infrared_sky_teaser.png)
 
 This Python package implements three models that provide skylight information.
 
@@ -9,7 +9,7 @@ This Python package implements three models that provide skylight information.
 This model (proposed by [Vévoda P. et al., 2022](https://cgg.mff.cuni.cz/publications/infrared-skymodel-2022/); original C++ code [here](https://cgg.mff.cuni.cz/wp-content/uploads/2022/09/vevoda_2022_infrared_sky_implementation.zip)) interpolates the skylight properties by using stored data for a range of parameters, and it does not
 include data for the angle of polarisation (this is calculated by using the analytical solution).
 
-![prague-sky-model](docs/prague_sky.png)
+![prague-sky-model](https://raw.githubusercontent.com/evgkanias/sky/a3eb1e695daeca79d8e4c82b281208745a8f24ad/docs/prague_sky.png)
 
 There are three available datasets that work with the Prague Sky Model, which can be downloaded form here:
 * [Google Drive with the near-infrared (SWIR) dataset](https://drive.google.com/file/d/1ZOizQCN6tH39JEwyX8KvAj7WEdX-EqJl/view?usp=sharing)
@@ -25,14 +25,14 @@ This model (proposed by [Wilkie A. et al., 2004](http://dx.doi.org/10.2312/EGWR/
 [Preetham A. J. et al., 1999](https://dl.acm.org/doi/pdf/10.1145/311535.311545)) includes radiance and polarisation
 information.
 
-![analytic-sky-model](docs/analytical_sky.png)
+![analytic-sky-model](https://raw.githubusercontent.com/evgkanias/sky/a3eb1e695daeca79d8e4c82b281208745a8f24ad/docs/analytical_sky.png)
 
 ### 3. Uniform model
 
 This model provides the same information for any sky conditions and viewing directions, and it could be used as a
 baseline model.
 
-![uniform-sky-model](docs/uniform_sky.png)
+![uniform-sky-model](https://raw.githubusercontent.com/evgkanias/sky/a3eb1e695daeca79d8e4c82b281208745a8f24ad/docs/uniform_sky.png)
 
 ## Installation
 
@@ -80,7 +80,7 @@ If you prefer to use a graphical user interface for this package, there is a sep
 use. This is named the [sky-gui](https://github.com/evgkanias/sky-gui) and it allows for interactive exploration of the
 skylight properties for the different models. However, in this version, only the Prague Sky Model is supported.
 
-![gui-teaser](docs/gui-1.png)
+![gui-teaser](https://raw.githubusercontent.com/evgkanias/sky/a3eb1e695daeca79d8e4c82b281208745a8f24ad/docs/gui-1.png)
 
 ## Report an issue
 
