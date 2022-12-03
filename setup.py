@@ -28,9 +28,11 @@ setuptools.setup(
         "Programming Language :: Python :: 3.9",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Atmospheric Science",
-        "Licence :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
-        "Operating System :: Microsoft :: Windows :: Windows 11"
+        "Operating System :: Microsoft :: Windows :: Windows 11",
+        "Topic :: Scientific/Engineering :: Atmospheric Science",
+        "Topic :: Scientific/Engineering :: Physics"
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
