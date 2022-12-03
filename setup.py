@@ -9,7 +9,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fr:
 
 setuptools.setup(
     name="skylight",
-    version="v1.0b1",
+    version="v1.0b2",
     author="Evripidis Gkanias",
     maintainer="Evripidis Gkanias",
     author_email="ev.gkanias@ed.ac.uk",
