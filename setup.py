@@ -17,7 +17,7 @@ setuptools.setup(
     description="A package providing radiance, polarisation, and transmittance information from the daylight.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/evgkanias/sky",
+    url="https://pypi.org/project/skylight/",
     license="GPLv3+",
     project_urls={
         "Bug Tracker": "https://github.com/evgkanias/sky/issues",
