@@ -14,23 +14,24 @@ if __name__ == '__main__':
     sun = Sun(obs)
 
     plt.figure()
-    for c, lat in [['r', np.deg2rad(0)],
-                   ['y', np.deg2rad(22.5)],
-                   ['g', np.deg2rad(45)],
-                   ['b', np.deg2rad(67.5)],
-                   ['c', np.deg2rad(89)]]:
-        sun.obs.lat = lat
-        e, a = [], []
+    for c, month in [['r', 1],
+                     ['y', 3],
+                     ['g', 6],
+                     ['b', 9],
+                     ['c', 12]]:
+        d, e, a = [], [], []
         for h in range(24):
-            sun.obs.date = datetime(2020, 9, 21, h, tzinfo=timezone('GMT'))
+            sun.obs.date = datetime(2024, month, 21, h, tzinfo=timezone('GMT'))
             sun.update()
+            d.append(sun.obs.date.hour)
             e.append(sun.alt)
             a.append(sun.az)
+            print((sun.sunset - sun.sunrise).total_seconds() / 3600)
 
-        e, a = np.array(e), np.array(a)
+        d, e, a = np.array(d), np.array(e), np.array(a)
 
-        plt.plot(a, e, '%s.-' % c)
-    plt.xlim([0, 2 * np.pi])
+        plt.plot(d, e, '%s.-' % c)
+    plt.xlim([0, 24])
     plt.ylim([0, np.pi/2])
 
     plt.show()

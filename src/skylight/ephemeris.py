@@ -15,6 +15,8 @@ from datetime import datetime
 
 import numpy as np
 
+eps = np.finfo(float).eps
+
 
 class Sun(object):
     def __init__(self, observer=None):
@@ -456,7 +458,7 @@ def sun_rad_vector(eeo, sta):
     -------
     float
     """
-    return (1.000001018 * (1 - np.square(eeo))) / (1 + eeo * np.cos(sta))
+    return (1.000001018 * (1 - np.square(eeo))) / (1 + eeo * np.cos(sta) + eps)
 
 
 def sun_app_long(jc, stl):
@@ -557,7 +559,7 @@ def sun_rt_ascen(sal, oc):
     -------
     float
     """
-    return np.arctan2(np.cos(oc) * np.sin(sal), np.cos(sal))
+    return np.arctan2(np.cos(sal), np.cos(oc)) * np.sin(sal)
 
 
 def sun_declin(sal, oc):
@@ -663,7 +665,7 @@ def ha_sunrise(lat, sd):
     -------
     float
     """
-    return np.arccos(np.clip(np.cos(np.deg2rad(90.833)) / (np.cos(lat) * np.cos(sd)) - np.tan(lat) * np.tan(sd), -1, 1))
+    return np.arccos(np.clip(np.cos(np.deg2rad(90.833)) / (np.cos(lat) * np.cos(sd)) - np.tan(lat) * np.tan(sd) + eps, -1, 1))
 
 
 def solar_noon(lon, eot, tz=0):
@@ -898,14 +900,15 @@ def approx_atmospheric_refraction(sea):
     -------
     float
     """
+    tsea = np.tan(sea) + eps
     if np.rad2deg(sea) > 85:
         return 0
     elif np.rad2deg(sea) > 5:
-        return np.deg2rad((1 / np.tan(sea) - 0.07 / np.power(np.tan(sea), 3) + 0.000086 / np.power(np.tan(sea), 5)) / 3600)
+        return np.deg2rad((58.1 / tsea - 0.07 / np.power(tsea, 3) + 0.000086 / np.power(tsea, 5)) / 3600)
     elif np.rad2deg(sea) > -0.575:
-        return np.deg2rad((1735 + sea * (-518.2 - sea * (-518.2 + sea * (103.4 + sea * (-12.79 + sea * 0.711))))) / 3600)
+        return np.deg2rad((1735 + sea * (-518.2 + sea * (-518.2 + sea * (103.4 + sea * (-12.79 + sea * 0.711))))) / 3600)
     else:
-        return np.deg2rad((-20.772 / np.tan(sea)) / 3600)
+        return np.deg2rad((-20.772 / tsea) / 3600)
 
 
 def solar_elevation_corrected_for_atm_refraction(sea, aar):
@@ -959,7 +962,7 @@ def solar_azimuth_angle(lat, ha, sza, sd):
     -------
     float
     """
-    temp = np.arccos(((np.sin(lat) * np.cos(sza)) - np.sin(sd)) / (np.cos(lat) * np.sin(sza)))
+    temp = np.arccos(((np.sin(lat) * np.cos(sza)) - np.sin(sd)) / (np.cos(lat) * np.sin(sza) + eps))
     if ha > 0:
         return (temp + np.pi) % (2 * np.pi)
     else:
