@@ -9,7 +9,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fr:
 
 setuptools.setup(
     name="skylight",
-    version="v1.0a",
+    version="v1.1",
     author="Evripidis Gkanias",
     maintainer="Evripidis Gkanias",
     author_email="ev.gkanias@ed.ac.uk",
@@ -24,7 +24,6 @@ setuptools.setup(
         "Source": "https://github.com/evgkanias/sky"
     },
     classifiers=[
-        "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3.9",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Atmospheric Science",
